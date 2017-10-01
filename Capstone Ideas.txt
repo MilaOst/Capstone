@@ -7,4 +7,5 @@ Data: n=35.9K hotel reviews on 1000 US hotels
 https://www.kaggle.com/datafiniti/hotel-reviews/data
 	
 Idea 3. Objectives: Discover key themes in wine description/reviews and measure the relationship between them and the wine rating. Identify positive/negative drivers of wine rating. 
+Data: n=150.9k wine reviews
 https://www.kaggle.com/zynicide/wine-reviews
