@@ -23,7 +23,7 @@ Amazon would like to understand what's working/not working well and for which pr
 * Identify the relationships between the themes and product ratings and measure their relative importance (along with product features, price) for predicting product ratings - regression
 	
 ## Data
-n=400K customer reviews of unlocked mobile phones [sold on Amazon.com](https://www.kaggle.com/PromptCloudHQ/amazon-reviews-unlocked-mobile-phones/data)
+n=400K customer reviews of unlocked [mobile phones sold on Amazon.com](https://www.kaggle.com/PromptCloudHQ/amazon-reviews-unlocked-mobile-phones/data)
 		
 # Idea 2 
 	
@@ -65,8 +65,8 @@ Hypothetical wine company would like to understand what product features/charact
 ## Approach
 * Exploratory analysis
 * Discover key themes/characteristics in wine description/reviews - text analytics
-* Measure the relationships between wine characteristics and wine rating and identify positive/negative drivers of wine rating - regression
+* Measure the relationships between wine characteristics and wine rating and identify positive/negative drivers of wine ratings - regression
 	
 ## Data
-n=150.9k [wine reviews]	(https://www.kaggle.com/zynicide/wine-reviews)
+n=150.9k [wine reviews](https://www.kaggle.com/zynicide/wine-reviews)
 	
