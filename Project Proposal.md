@@ -40,7 +40,7 @@ Based on this information it can decide what actions should be taken to fix the 
 
 * Discover what key themes exist in customer reviews 
 
-### Multiple Regression
+### Multiple regression
 
 * Identify the relationships between themes and product ratings 
 * Measure relative importance of themes, brand names, product features, and price to predict product ratings
