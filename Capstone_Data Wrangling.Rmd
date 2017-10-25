@@ -9,7 +9,7 @@ amz<-amz %>%
 select(-Review.Votes)
 ```
 ## Step 2. Filtering out core products/brands. 
-### There were 4410 products in the dataset. But only 24% of them (n=1074) were responsible for generating around 90% of total revenue. The assumption is that the distribution of revenue among products with reviews is reflective of total Amazon sales of the unlocked mobile phones. Since Amazon is interested in the performance of its core products, further analysis will be focused on the top ~1000 well performing products. 
+### Originally, there were 4410 products in the dataset. But only 24% of them (n=1074) were responsible for generating around 90% of the total revenue. The assumption is that the distribution of revenue among products with reviews is reflective of total Amazon sales of the unlocked mobile phones. Since Amazon is interested in the performance of its core products, further analysis will be focused on the top ~1000 well performing products. 
 
 ``` {r}
 #count number of products, n=4410 
@@ -44,7 +44,7 @@ amz_top90<-right_join(amz, top90)
 ```
 
 ## Step 3.Cleaning up brand name.
-### The original brand name variations were susbstited by the corresponding brand name and the results were saved into new column, called Brand Name Clean.
+### The original brand name variations were substituted by the corresponding brand name and the results were saved into new column, called Brand Name Clean.
 
 ``` {r}
 #clean Brand.Name 
@@ -111,7 +111,7 @@ filter(Brand.Name.Clean %in% (c("Alcatel","Apple","Asus","Blackberry","BLU","Cas
 ```
 
 ## Step 5. Looking for outliers. 
-###Products with extremely large prices - above the three standard deviations of the mean (> $1143) considered to be outliers and were excluded from the analysis. The final dataset consisted of the core 1026 products (23% of initial portfolio) that provided 78% of revenue. This ratio corresponds to the 80/20 Pareto rule. The long tail of products, less important for total revenue, was excluded from further analysis.  
+### Products with extremely large prices - above the three standard deviations of the mean (> $1143) considered to be outliers and were excluded from the analysis. The final dataset consisted of the core 1026 products (23% of initial portfolio) that provided 78% of revenue. This ratio corresponds to the 80/20 Pareto rule. The long tail of products, less important for the total revenue, was excluded from further analysis.  
 
 ``` {r}
 #mean_price
