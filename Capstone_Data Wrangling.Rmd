@@ -111,7 +111,7 @@ filter(Brand.Name.Clean %in% (c("Alcatel","Apple","Asus","Blackberry","BLU","Cas
 ```
 
 ## Step 5. Looking for outliers. 
-### Products with extremely large prices - above the three standard deviations of the mean (> $1143) considered to be outliers and were excluded from the analysis. The final dataset consisted of the core 1026 products (23% of initial portfolio) that provided 78% of revenue. This ratio corresponds to the 80/20 Pareto rule. The long tail of products, less important for the total revenue, was excluded from further analysis.  
+### Phones with extremely large prices, above the three standard deviations of the mean (> $1143), considered to be outliers and were excluded from the analysis. The final dataset consisted of the core 1026 products (23% of initial portfolio) that provided 78% of revenue. This ratio corresponds to the 80/20 Pareto rule. The long tail of products, less important for the total revenue, was excluded from further analysis.  
 
 ``` {r}
 #mean_price
