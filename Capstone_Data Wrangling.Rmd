@@ -1,0 +1,145 @@
+# Data Wrangling
+
+## Step 1. Cleaning up the original data and removing the unnecessary fields.
+
+``` {r}
+#remove column Rating.Votes
+amz<-amz %>% 
+select(-Review.Votes)
+```
+## Step 2. Filtering out core products/brands. There were 4410 products in the dataset. But only 24% of them (n=1074) were responsible for generating around 90% of total revenue. The assumption is that the distribution of revenue among products with reviews is reflective of total Amazon sales of the unlocked mobile phones. Since Amazon is interested in the performance of its core products, further analysis will be focused on the top ~1000 performing products. 
+
+``` {r}
+#count # of products, n=4410 
+amz %>% 
+count(Product.Name)
+
+#calculate revenue per product
+pr<-amz %>%
+ group_by(Product.Name) %>%
+ summarise(revenue=sum(Price),cnt = n())%>%
+ arrange(desc(revenue))
+ 
+#calculate total revenue 
+total_revenue<- pr %>% 
+filter(!is.na(revenue)) %>% 
+summarise(total_revenue=sum(revenue))
+ 
+#calculate revenue share, %
+pr<-pr %>%
+mutate(revenue_share=revenue/92540701*100)
+
+#calculate cumulative revenue share,%
+pr<-pr %>%
+mutate(cum_revenue_share=cumsum(revenue_share))
+
+#select products that bring ~90% of revenue
+top90<-pr %>%
+filter (cum_revenue_share<90)
+
+#append Brand.Name, Price, Rating, Reviews to the list of products (n=1074, 24%) that bring ~90% of revenue)
+amz_top90<-right_join(amz, top90)
+```
+
+## Step 3.Cleaning up brand name by susbstituting different variations of the same brand.
+
+``` {r}
+#clean Brand.Name 
+amz_top90<-amz_top90 %>%
+mutate(Brand.Name.Clean=case_when(Brand.Name=="Amazon.com, LLC *** KEEP PORules ACTIVE ***" ~ "Apple",
+								Brand.Name %in% (c("Asus","ASUS","ASUS Computers")) ~ "Asus",
+								Brand.Name %in% (c("Blackberry","BlackBerry")) ~ "Blackberry",
+								Brand.Name %in% (c("Global Services","Samssung","samsung","Samsung","SAMSUNG","Samsung international","Samsung Korea","Samsung Korea LTD","PowerMoxie","Unknown")) ~ "Samsung",
+								Brand.Name %in% (c("GreatCall", "Jitterbug")) ~ "GreatCall",
+								Brand.Name %in% (c("LG","LG Electronics","LG Electronics MobileComm USA")) ~ "LG",
+								Brand.Name %in% (c("Moto X","Motorola")) ~ "Motorola",
+								Brand.Name %in% (c("Huawei","HUAWEI")) ~ "Huawei",
+								TRUE ~ as.character(Brand.Name)))
+```
+
+
+## Step 4. Checking for missing values. There were around 50,000 cases with the missing brand name. For these cases, product name was used to create corresponding brand names. Brands that represented other categories (smartwatch, case, adapter, etc.) were excluded from the analysis. 
+
+``` {r} 
+#fill in the missing brand names - keep other categories (smartwatch, adapter, case, etc.) missing and exclude 
+amz_top90<-amz_top90 %>%
+mutate(Brand.Name.Clean=case_when(Brand.Name.Clean!="" ~ Brand.Name.Clean,
+                                grepl('Apple',Product.Name,fixed=TRUE) ~ 'Apple', 
+								grepl('Samsung',Product.Name,fixed=TRUE) ~ 'Samsung',
+								grepl('Lenovo',Product.Name,fixed=TRUE) ~ 'Lenovo',
+								grepl('ASUS',Product.Name,fixed=TRUE) ~ 'Asus',
+								grepl('BlackBerry',Product.Name,fixed=TRUE) ~ 'Blackberry',
+								grepl('Blackberry',Product.Name,fixed=TRUE) ~ 'Blackberry',
+								grepl('BLU',Product.Name,fixed=TRUE) ~ 'BLU',
+								grepl('ECOOPRO',Product.Name,fixed=TRUE) ~ 'ECOOPRO',
+								grepl('Hipipoo',Product.Name,fixed=TRUE) ~ 'Hipipoo',
+								grepl('Honor',Product.Name,fixed=TRUE) ~ 'Huawei',
+								grepl('HTC',Product.Name,fixed=TRUE) ~ 'HTC',
+								grepl('Huawei',Product.Name,fixed=TRUE) ~ 'Huawei',
+								grepl('IPHONE',Product.Name,fixed=TRUE) ~ 'Apple',
+								grepl('LG',Product.Name,fixed=TRUE) ~ 'LG',
+								grepl('Microsoft',Product.Name,fixed=TRUE) ~ 'Microsoft',
+								grepl('Moto',Product.Name,fixed=TRUE) ~ 'Motorola',
+								grepl('Motorola',Product.Name,fixed=TRUE) ~ 'Motorola',
+								grepl('Nextbit',Product.Name,fixed=TRUE) ~ 'Nextbit',
+								grepl('Nokia',Product.Name,fixed=TRUE) ~ 'Nokia',
+								grepl('Oneplus',Product.Name,fixed=TRUE) ~ 'OnePlus',
+								grepl('Pantech',Product.Name,fixed=TRUE) ~ 'Pantech',
+								grepl('POSH MOBILE',Product.Name,fixed=TRUE) ~ 'Posh Mobile',
+								grepl('Posh Mobile',Product.Name,fixed=TRUE) ~ 'Posh Mobile',
+								grepl('Sony',Product.Name,fixed=TRUE) ~ 'Sony',
+								grepl('SONY',Product.Name,fixed=TRUE) ~ 'Sony',
+								grepl('Google',Product.Name,fixed=TRUE) ~ 'Google',
+								TRUE ~ Brand.Name.Clean))
+								
+#group by cleaned brand name
+amz_top90%>% 
+count(Brand.Name.Clean)%>% 
+as.data.frame()
+
+#fix brand name for Nexus models
+amz_top90<-amz_top90 %>%
+mutate(Brand.Name.Clean= replace(Brand.Name.Clean, grepl('Nexus',Product.Name,fixed=TRUE), "Google"))
+
+#exclude brands/categories that are not phones
+amz_top90<-amz_top90%>% 
+filter(Brand.Name.Clean %in% (c("Alcatel","Apple","Asus","Blackberry","BLU","Casio","CAT PHONES","ECOOPRO","FIGO","Google","GreatCall","Hipipoo","HTC","Huawei","Lenovo","LG","Mango Natural","Microsoft","Motorola","Nextbit","Nokia","OnePlus","Pantech","Polaroid","Posh Mobile","RCA","Samsung","Sony","Star","ZTE")))
+```
+
+## Step 5. Looking for outliers. Products with extremely large prices - above three standard deviations of the mean (> $1143) deemed to be outliers and were excluded from the analysis. The final dataset consisted of the core 1026 products (23% of initial portfolio) that provided 78% of revenue. This ratio corresponds to the 80/20 Pareto rule. The long tail of products, less important for total revenue, were excluded from further analysis.  
+
+``` {r}
+#mean_price
+mean_price<- amz_top90 %>% 
+summarise(mean_price=mean(Price))
+
+#standard deviation
+sd_price<- amz_top90 %>% 
+summarise(sd_price=sd(Price))							
+
+#outlier - if Price more than 3*SD
+amz_top90<-amz_top90%>%
+mutate(Outlier=ifelse(Price>(mean(Price)+3*sd(Price)),1,0))
+
+#exclude outliers
+amz_top90<-amz_top90%>% 
+filter(Outlier==0)					
+	
+#calculate revenue per product
+amz_clean<-amz_top90 %>%
+group_by(Product.Name) %>%
+summarise(Revenue=sum(Price),cnt = n())%>%
+arrange(desc(Revenue))
+ 
+#calculate revenue share, %
+amz_clean<-amz_clean %>%
+mutate(Revenue_Share=Revenue/92540701*100)
+
+#calculate cumulative revenue share,%
+amz_clean<-amz_clean %>%
+mutate(Cum_Revenue_Share=cumsum(Revenue_Share))
+	
+#append Brand.Name, Price, Rating, Reviews to the final list of products(n=1026, 23%) that bring 78% of revenue
+amz_clean<-right_join(amz_top90, amz_clean)	
+View(amz_clean)	
+```
