@@ -1,7 +1,36 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+---
 # Data Wrangling
+## Introduction
+#### The Amazon Unlocked Mobile Phones dataset was downloaded from [here](https://www.kaggle.com/PromptCloudHQ/amazon-reviews-unlocked-mobile-phones/data). Before uploading this file into R, dplyr and tidyr packages were installed.
+
+``` {r}
+library(dplyr)
+library(tidyr)
+```
+
+```{r echo=FALSE}
+#import file
+amz<-read.csv('C:\\Users\\lyudm\\Documents\\Springboard\\amazon-reviews-unlocked-mobile-phones\\Amazon_Unlocked_Mobile_original.csv')
+```
+#### The dataset consists of around 400K records and includes the following fields: Product Name, Brand Name, Price, Rating, Reviews, and Review Votes. 
+
+``` {r}
+glimpse(amz)
+```
+#### The following commands helped to see how the dataset looks like and what intofrmation it contains.  
+
+``` {r}
+amz<-tbl_df(amz)
+View(amz)
+```
+#### After looking at the data, it was determined that all of the fields, except Review Votes, were useful for the analysis. Therefore, the first initial step was to remove Rating Votes from the dataset.
 
 ## Step 1. Cleaning up the original data.
-### The unnecessary fields, such as Rating.Votes were removed from further analysis.
+#### The unnecessary fields, such as Rating.Votes were removed from further analysis.
 
 ``` {r}
 #remove column Rating.Votes
@@ -9,13 +38,16 @@ amz<-amz %>%
 select(-Review.Votes)
 ```
 ## Step 2. Filtering out core products/brands. 
-### Originally, there were 4410 products in the dataset. But only 24% of them (n=1074) were responsible for generating around 90% of the total revenue. The assumption is that the distribution of revenue among products with reviews is reflective of total Amazon sales of the unlocked mobile phones. Since Amazon is interested in the performance of its core products, further analysis will be focused on the top ~1000 well performing products. 
+#### The next step was to find out how many unique products exist in this dataset. The following command produced the results showing that originally there were 4410 products in the dataset. 
 
 ``` {r}
 #count number of products, n=4410 
 amz %>% 
 count(Product.Name)
+```
+#### However, taking into account that Amazon was interested in the performance of only core products, it was important to define which of these 4410 products represent its core portfolio. The assumption is that the distribution of revenue among products with reviews is reflective of total Amazon sales of the unlocked mobile phones. So the next step was to calculate the revenue per product based on price and quantity (the number of times the product appeared in the dataset) and its share of revenue.  After that all products were sorted by the share of revenue with the most important products at the top of the dataset. The following code was used for these calculations.
 
+``` {r}
 #calculate revenue per product
 pr<-amz %>%
  group_by(Product.Name) %>%
@@ -34,17 +66,37 @@ mutate(revenue_share=revenue/92540701*100)
 #calculate cumulative revenue share,%
 pr<-pr %>%
 mutate(cum_revenue_share=cumsum(revenue_share))
+```
+#### The results showed that n=1074 products, which equals 24% of the total number of products, were responsible for generating around 90% of the total revenue.  Therefore, it was decided that further analysis would be focused on the top ~1000 well performing products. Using the follwing command, the top performing products were filtered out from the original dataset. 
 
+``` {r}
 #select products that bring ~90% of revenue
 top90<-pr %>%
 filter (cum_revenue_share<90)
+```
+#### The list of top 1000 products was merged with the original dataset and the rest of the fileds were appended: Brand Name, Price, Rating, and Reviews. Also, the unnecessary fields were then removed from the combined dataset. Ulimately, the final list of the core products was created and the overall number of records decreased from ~400K to ~300K.
 
+``` {r}
 #append Brand.Name, Price, Rating, Reviews to the list of products (n=1074, 24%) that bring ~90% of revenue)
 amz_top90<-right_join(amz, top90)
-```
 
-## Step 3.Cleaning up brand name.
-### The original brand name variations were substituted by the corresponding brand name and the results were saved into new column, called Brand Name Clean.
+#exclude certain fields
+amz_top90<-amz_top90%>%
+select(-revenue,-cnt,-revenue_share,-cum_revenue_share)
+
+glimpse(amz_top90)
+
+```
+## Step 3.Cleaning up the brand name.
+#### The summary of products by brand name revealed that there were around 50K of records with the missing values, certain amount of the unknowns, specific brands related to the non-phone categories (such as smartwatch, accessories, etc.), and  different spelling of the same brand name.
+
+``` {r}
+#group by brands
+amz_top90%>% 
+count(Brand.Name)%>% 
+as.data.frame()
+```
+#### The original brand name variations were substituted by the corresponding brand names
 
 ``` {r}
 #clean Brand.Name 
@@ -59,10 +111,8 @@ Brand.Name %in% (c("Moto X","Motorola")) ~ "Motorola",
 Brand.Name %in% (c("Huawei","HUAWEI")) ~ "Huawei",
 TRUE ~ as.character(Brand.Name)))
 ```
-
-
-## Step 4. Checking for missing values. 
-### There were around 50,000 cases with the missing brand name. For these cases, product name was used to create corresponding brand names. Brands that represented other categories (smartwatch, case, adapter, etc.) were excluded from the analysis. 
+## Step 4. Replacing the missing brand values. 
+#### As it was shown above, there were around 50K of cases with the missing brand name. It was decided to use the product name to create the corresponding brand name.  
 
 ``` {r} 
 #fill in the missing brand names, keep other categories (smartwatch, adapter, case, etc.) missing, and exclude them 
@@ -95,23 +145,25 @@ grepl('Sony',Product.Name,fixed=TRUE) ~ 'Sony',
 grepl('SONY',Product.Name,fixed=TRUE) ~ 'Sony',
 grepl('Google',Product.Name,fixed=TRUE) ~ 'Google',
 TRUE ~ Brand.Name.Clean))
-								
+
+#fix the brand name for Nexus models
+amz_top90<-amz_top90 %>%
+mutate(Brand.Name.Clean= replace(Brand.Name.Clean, grepl('Nexus',Product.Name,fixed=TRUE), "Google"))
+```
+#### The brands that represented other categories (smartwatch, case, adapter, etc.) were excluded from the analysis. It was done by filtering out only brands that were relevant for further analysis. Ulimately, the original list of 49 brands was decreased to 30 most relevant brand names.
+
+``` {r}								
+#exclude brands/categories that are not phones
+amz_top90<-amz_top90%>% 
+filter(Brand.Name.Clean %in% (c("Alcatel","Apple","Asus","Blackberry","BLU","Casio","CAT PHONES","ECOOPRO","FIGO","Google","GreatCall","Hipipoo","HTC","Huawei","Lenovo","LG","Mango Natural","Microsoft","Motorola","Nextbit","Nokia","OnePlus","Pantech","Polaroid","Posh Mobile","RCA","Samsung","Sony","Star","ZTE")))
+
 #group by cleaned brand name
 amz_top90%>% 
 count(Brand.Name.Clean)%>% 
 as.data.frame()
-
-#fix brand name for Nexus models
-amz_top90<-amz_top90 %>%
-mutate(Brand.Name.Clean= replace(Brand.Name.Clean, grepl('Nexus',Product.Name,fixed=TRUE), "Google"))
-
-#exclude brands/categories that are not phones
-amz_top90<-amz_top90%>% 
-filter(Brand.Name.Clean %in% (c("Alcatel","Apple","Asus","Blackberry","BLU","Casio","CAT PHONES","ECOOPRO","FIGO","Google","GreatCall","Hipipoo","HTC","Huawei","Lenovo","LG","Mango Natural","Microsoft","Motorola","Nextbit","Nokia","OnePlus","Pantech","Polaroid","Posh Mobile","RCA","Samsung","Sony","Star","ZTE")))
 ```
-
-## Step 5. Looking for outliers. 
-### Phones with extremely large prices, above the three standard deviations of the mean (> $1143), considered to be outliers and were excluded from the analysis. The final dataset consisted of the core 1026 products (23% of initial portfolio) that provided 78% of revenue. This ratio corresponds to the 80/20 Pareto rule. The long tail of products, less important for the total revenue, was excluded from further analysis.  
+## Step 5. Looking for price outliers. 
+####  The next data wragling step was to look for potential outliers in the dataset. Products with extemely large prices were considered to be outliers. Firstly, the following commands were used to calcualte the average price and the standard deviation. 
 
 ``` {r}
 #mean_price
@@ -121,7 +173,10 @@ summarise(mean_price=mean(Price))
 #standard deviation
 sd_price<- amz_top90 %>% 
 summarise(sd_price=sd(Price))							
+```
+#### Then the new column, "Outlier", was created by classifing products into outliers (1) and non-oultiers (0). Thus, the phones with the prices above the three standard deviations of the mean (> $1143) were classified as outliers and excluded from further analysis. 
 
+``` {r}
 #outlier - if Price more than 3*SD
 amz_top90<-amz_top90%>%
 mutate(Outlier=ifelse(Price>(mean(Price)+3*sd(Price)),1,0))
@@ -129,7 +184,10 @@ mutate(Outlier=ifelse(Price>(mean(Price)+3*sd(Price)),1,0))
 #exclude outliers
 amz_top90<-amz_top90%>% 
 filter(Outlier==0)					
-	
+```
+#### Since those outliers were excluded from the dataset, it was necessary to recalculate each product's share of revenue and the cumulative revenue of the remaining core products. 
+
+``` {r}
 #calculate revenue per product
 amz_clean<-amz_top90 %>%
 group_by(Product.Name) %>%
@@ -143,8 +201,240 @@ mutate(Revenue_Share=Revenue/92540701*100)
 #calculate cumulative revenue share,%
 amz_clean<-amz_clean %>%
 mutate(Cum_Revenue_Share=cumsum(Revenue_Share))
-	
+```	
+#### Lastly, the updated dataset with the revenue information was merged with the list containing other product information.
+
+``` {r}
 #append Brand.Name, Price, Rating, Reviews to the final list of products(n=1026, 23%) that bring 78% of revenue
 amz_clean<-right_join(amz_top90, amz_clean)	
-View(amz_clean)	
+
+glimpse(amz_clean)	
+```
+#### The final dataset consists of the core 1026 products (23% of the initial portfolio) that produced 78% of the total revenue. This ratio corresponds to the 80/20 Pareto rule. Thus, all the data wrangling manipulations above helped to remove the long tail of products, less important for the total revenue and to decrease the number of cases to ~300K.
+
+## Step 6. Deriving product features.
+#### After the list of the core products was identified, the next step was to decompose Product Name and to derive product features. The way each product is described is not the same. So various regular expressions were needed to be able to identify the following features: CPU, Battery, RAM, Storage, Rugged (waterproof/dust- or shockresistant), Camera, Color, Locked/Unlocked, Phone type, Processor Speed, Connectivity, Warranty, OS, Sim, Carrier, Certified Refurbished, Version, Screen). Below is an example of a code used to derive Camera.
+
+```
+regex="(.*)\\b([0-9.]+\\s*M(?:ega)?P(?:ixel)?)\\b(.*)"
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.Camera=case_when(grepl(regex, Features.Txt, ignore.case=TRUE) ~ gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							                  TRUE ~ '')) %>%
+mutate(Features.Txt=gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+```
+```{r echo=FALSE}
+amz_clean_features<-amz_clean %>% mutate(Features.Txt=Product.Name)
+amz_clean_features<- amz_clean_features %>%
+  mutate(Features.Txt=gsub("No "             , "No"     ,Features.Txt,ignore.case=TRUE)) %>%
+  mutate(Features.Txt=gsub(" and "           , " "     ,Features.Txt,ignore.case=TRUE)) %>%
+  mutate(Features.Txt=gsub(" & "             , " "     ,Features.Txt,ignore.case=TRUE)) %>%
+  mutate(Features.Txt=gsub("Cell phone"      , "Cellphone"     ,Features.Txt,ignore.case=TRUE)) %>%
+  mutate(Features.Txt=gsub("Phones"          , "Phone"     ,Features.Txt,ignore.case=TRUE)) %>%
+  mutate(Features.Txt=gsub("Factory\\s*Unlocked" , "Unlocked"     ,Features.Txt,ignore.case=TRUE)) %>%
+  mutate(Features.Txt=gsub("Bluetooth"       , ""     ,Features.Txt,ignore.case=TRUE)) %>%
+  mutate(Features.Txt=gsub("U\\.S\\."        , "US" ,Features.Txt,ignore.case=TRUE)) %>%
+  mutate(Features.Txt=gsub("(TF|SD|microSD)(\\s+Card)?\\s*Slot"   , "" ,Features.Txt,ignore.case=TRUE)) %>%
+  # 16GB   /[0-9]GB/ -> 6GB  /[0-9]+GB/ -> 16GB
+  mutate(Features.Txt=gsub("[0-9]+GB\\s+(TF|SD|microSD)\\s+(Card)?"   , " " ,Features.Txt,ignore.case=TRUE)) %>%
+  # [- ]-> "-" charater or " " character
+  mutate(Features.Txt=gsub("Quad[- ]+"        , "Quad" ,Features.Txt,ignore.case=TRUE)) %>%
+  mutate(Features.Txt=gsub("Dual[- ]+"        , "Dual" ,Features.Txt,ignore.case=TRUE)) %>%
+  mutate(Features.Txt=gsub("Octa[- 8]+"       , "Octa" ,Features.Txt,ignore.case=TRUE)) %>%
+  mutate(Features.Txt=gsub("Hexa[- 16]+"      , "Hexa" ,Features.Txt,ignore.case=TRUE)) %>%
+  # "Dualband WiFi" "Wi Fi" "Wi-Fi" "Dualband Wi - Fi"
+  mutate(Features.Txt=gsub("(Dualband)?\\sWi[- ]*Fi", "" ,Features.Txt,ignore.case=TRUE)) %>%
+  mutate(Features.Txt=gsub("Touch[ -]*Screen" , "" ,Features.Txt,ignore.case=TRUE)) %>%
+  mutate(Features.Txt=gsub("(Super|Big|Large)\\s*Battery", "" ,Features.Txt,ignore.case=TRUE)) %>%
+  mutate(Features.Txt=gsub("Sealed"           , "" ,Features.Txt,ignore.case=TRUE)) %>%
+  mutate(Features.Txt=gsub("Internationally"  , "International" ,Features.Txt,ignore.case=TRUE)) %>%
+  mutate(Features.Txt=gsub("\\bSourced\\b"    , "" ,Features.Txt,ignore.case=TRUE)) %>%
+  mutate(Features.Txt=gsub("NoContract"       , "Unlocked" ,Features.Txt,ignore.case=TRUE)) %>%
+  mutate(Features.Txt=gsub("colorful design"  , "Multicolor" ,Features.Txt,ignore.case=TRUE))
+
+# number of cpu cores
+# some 16core other
+regex = "(.*?)([a-z0-9]+core)(.*)"
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.CPU=case_when( grepl(regex, Features.Txt, ignore.case=TRUE) ~ gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							                TRUE ~ '')) %>%
+mutate(Features.Txt=gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+
+# CPU Mhz 1.25Ghz 1.7Ghz
+regex = "(.*?)([0-9.]+Ghz)(.*)"
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.CPU=paste(Feature.CPU," ",case_when( grepl(regex, Features.Txt, ignore.case=TRUE) ~ gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							                           TRUE ~ ''))) %>%
+mutate(Features.Txt=           gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+
+# more cpu core "16 Core"
+# paste ("a", "b") => "ab"
+regex = "(.*)\\b([0-9]+ Core)\\b(.*)"
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.CPU=paste(Feature.CPU," ",case_when( grepl(regex, Features.Txt, ignore.case=TRUE) ~gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							   TRUE ~ ''))) %>%
+mutate(Features.Txt=           gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+
+# ----
+regex = "(.*)\\b([0-9]+\\s*mAh)(.*)"
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.Battery=case_when( grepl(regex, Features.Txt, ignore.case=TRUE) ~gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							   TRUE ~ '')) %>%
+mutate(Features.Txt=           gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+
+# ----
+regex="(.*)\\b([0-9]+\\s*gb)\\s*RAM\\b(.*)"
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.Ram=case_when(  grepl(regex, Features.Txt, ignore.case=TRUE) ~ gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							   TRUE ~ '')) %>%
+mutate(Features.Txt=             gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+
+regex="(.*)\\bRAM\\s+([0-9]+\\s*gb)\\b(.*)"
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.Ram=paste(Feature.Ram, " ",case_when(  grepl(regex, Features.Txt, ignore.case=TRUE) ~ gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							   TRUE ~ ''))) %>%
+mutate(Features.Txt=             gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+
+# ----
+regex="(.*)\\b([0-9]+\\s*gb)\\b(.*)"
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.Storage=case_when(  grepl(regex, Features.Txt, ignore.case=TRUE) ~gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							   TRUE ~ '')) %>%
+mutate(Features.Txt=             gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+# ----
+regex="(.*)\\b((?:Water|Dust|Shock)\\s*(?:proof|Resistant))\\b(.*)"
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.Rugged=case_when(  grepl(regex, Features.Txt, ignore.case=TRUE) ~gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							   TRUE ~ '')) %>%
+mutate(Features.Txt=             gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.Rugged=paste(Feature.Rugged, case_when(  grepl(regex, Features.Txt, ignore.case=TRUE) ~ gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							   TRUE ~ ''))) %>%
+mutate(Features.Txt=             gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+
+# ----
+regex="(.*)\\b([0-9.]+\\s*M(?:ega)?P(?:ixel)?)\\b(.*)"
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.Camera=case_when(  grepl(regex, Features.Txt, ignore.case=TRUE) ~ gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							   TRUE ~ '')) %>%
+mutate(Features.Txt=             gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+
+# ---
+# extract color twice
+# "Iphone White 32 GB White" -> "White White"
+regex= "(.*?)\\b((?:(?:Ocean|Champagne|Multicolor|Sunrise|Shimmery|Amber|Carbon|Purple|Brown|Light|Dark|Golden|Metallic|Coral|Copper|Titanium|White|Gray|Black|Gold|Silver|Red|Orange|Pink|Grey|Blue|Green|Yellow|Rose|Moonlight|Glacier|Lavender|Sky|Opal|Chromium|Phthalo|Sapphire|Topaz|Pearl|Emerald|Platinum|Camo|Charcoal|Frosted|Dazzling|Titan)\\s*)+)\\b(.*)"
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.Color=case_when( grepl(regex, Features.Txt, ignore.case=TRUE) ~ gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							   TRUE ~ '')) %>%
+mutate(Features.Txt=             gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.Color=paste(Feature.Color, " ",case_when( grepl(regex, Features.Txt, ignore.case=TRUE) ~gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							   TRUE ~ ''))) %>%
+mutate(Features.Txt=             gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+
+
+# ----
+regex="(.*)\\b(Unlocked|Locked)\\b(.*)"
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.Lock=case_when(  grepl(regex, Features.Txt, ignore.case=TRUE) ~ gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							   TRUE ~ '')) %>%
+mutate(Features.Txt=             gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+
+# ----
+regex="(.*)\\b(Smartphone|Cellphone|Phone|Cell|Phablet|Tablet|Flip|Fliphone)\\b(.*)"
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.Type=case_when(  grepl(regex, Features.Txt, ignore.case=TRUE) ~ gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							   TRUE ~ '')) %>%
+mutate(Features.Txt=             gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+
+# ----
+#  0 / 1 / 2
+# 850 / 900 / 1200
+#  (?:[0-9]+\\s*/\\s*) repeated 2,3,4,... times
+regex = "(.*?)((?:[0-9]+\\s*/\\s*){2,}[0-9]+)(.*)"
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.Mhz=case_when( grepl(regex, Features.Txt, ignore.case=TRUE) ~ gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							   TRUE ~ '')) %>%
+mutate(Features.Txt=           gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+
+# ----
+regex="(.*?)((?:(?:2G|3G|4G|LTE|HSPA\\+|GSM|CDMA|WCDMA|Quadband|Dualband)\\s*)+)(.*)"
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.Conn=case_when(  grepl(regex, Features.Txt, ignore.case=TRUE) ~ gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							   TRUE ~ '')) %>%
+mutate(Features.Txt=             gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.Conn=paste(Feature.Conn," ", case_when(  grepl(regex, Features.Txt, ignore.case=TRUE) ~ gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							   TRUE ~ ''))) %>%
+mutate(Features.Txt=             gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+
+
+
+# ----
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.Warranty=case_when( grepl("(.*)\\b(NoWarranty|Warranty)\\b(.*)", Features.Txt, ignore.case=TRUE) ~
+					             gsub("(.*)\\b(NoWarranty|Warranty)\\b(.*)","\\2",Features.Txt, ignore.case=TRUE),
+							   TRUE ~ '')) %>%
+mutate(Features.Txt=             gsub("(.*)\\b(NoWarranty|Warranty)\\b(.*)","\\1 \\3",Features.Txt, ignore.case=TRUE))
+
+# ----
+regex = "(.*)\\b(Android|iOs|Windows|Lollipop|KitKat)\\b(.*)"
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.Os=case_when( grepl(regex, Features.Txt, ignore.case=TRUE) ~ gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							   TRUE ~ '')) %>%
+mutate(Features.Txt=             gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+# ----
+regex = "(.*)\\b((?:Dual|Single)[ -]*(?:Micro[ -])?Sim)\\b(.*)"
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.Sim=case_when( grepl(regex, Features.Txt, ignore.case=TRUE) ~ gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							   TRUE ~ '')) %>%
+mutate(Features.Txt=           gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+# ----
+
+regex = "(.*?)\\b((?:AT&T)|(?:Verizon)|(?:Sprint)|(?:T-Mobile)|(?:Virgin)|(?:Boost))(?:Mobile)?\\b(.*)"
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.Carrier=case_when( grepl(regex, Features.Txt, ignore.case=TRUE) ~gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							   TRUE ~ '')) %>%
+mutate(Features.Txt=           gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+# ----
+
+
+regex = "(.*?)\\b(Certified Refurbished)\\b(.*)"
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.Used=case_when( grepl(regex, Features.Txt, ignore.case=TRUE) ~gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							   TRUE ~ '')) %>%
+mutate(Features.Txt=           gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+
+# ----
+regex = "(.*?)\\b((?:International Version)|(?:Global)|(?:US Version)|(?:US Model)|(?:US)|EU|LATAM)\\b(.*)"
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.Geo=case_when( grepl(regex, Features.Txt, ignore.case=TRUE) ~gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							   TRUE ~ '')) %>%
+mutate(Features.Txt=           gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+
+# ----
+regex = "(.*?)([0-9.]+[ -]*(?:(?:\")|(?:In(?:ch)?)|(?:HD IPS)|(?:IPS)|(?:Amoled)))(.*)"
+amz_clean_features<-amz_clean_features %>%
+mutate(Feature.Screen=case_when( grepl(regex, Features.Txt, ignore.case=TRUE) ~gsub(regex,"\\2",Features.Txt, ignore.case=TRUE),
+							   TRUE ~ '')) %>%
+mutate(Features.Txt=           gsub(regex,"\\1 \\3",Features.Txt, ignore.case=TRUE))
+# ----
+
+# drop words we dont like
+amz_clean_features<-amz_clean_features %>%
+  mutate(Features.Txt=gsub("\\b(ROM|Luxury|Mobile|Smart|Genuine|Internal|Memory|Factory|QWERTY|Keyboard|with|Camera|International|Packaging|Version|DualCamera|FULL|KICK|Active|unique|Compact|Eazy|Life|Space|Siri|iCloud|WiFi|Wireless|Storage|Retail|Stock|Model|Platinum|Forest|Lime)\\b", ""        ,Features.Txt,ignore.case=TRUE))
+
+
+amz_clean_features<-amz_clean_features %>%
+  mutate(Features.Txt=gsub("w/"               , " " ,Features.Txt,ignore.case=TRUE)) %>%
+  mutate(Features.Txt=gsub("[, .()-]{2,}"     , " " ,Features.Txt,ignore.case=TRUE)) %>%
+  mutate(Features.Txt=gsub("[, .()-]+$"       , "" ,Features.Txt,ignore.case=TRUE))
+
+```
+
+#### The final dataset includes 30 variables and looks like this.
+``` {r}
+str (amz_clean_features)
 ```
