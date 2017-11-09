@@ -155,17 +155,55 @@ $(document).ready(function () {
 <pre class="r"><code>amz&lt;-tbl_df(amz)
 View(amz)</code></pre>
 </div>
-<div id="after-looking-at-the-data-it-was-determined-that-all-of-the-fields-except-review-votes-were-useful-for-the-analysis.-therefore-the-first-initial-step-was-to-remove-rating-votes-from-the-dataset." class="section level4">
-<h4>After looking at the data, it was determined that all of the fields, except Review Votes, were useful for the analysis. Therefore, the first initial step was to remove Rating Votes from the dataset.</h4>
 </div>
+<div id="step-1.-checking-for-missing-values." class="section level2">
+<h2>Step 1. Checking for missing values.</h2>
+<div id="as-the-first-step-the-following-comands-were-used-to-check-if-there-were-anu-missing-values-in-the-dataset." class="section level4">
+<h4>As the first step, the following comands were used to check if there were anu missing values in the dataset.</h4>
+<pre class="r"><code>amz%&gt;% 
+count(Product.Name==&quot;&quot;)</code></pre>
+<pre><code>## Warning: package 'bindrcpp' was built under R version 3.4.2</code></pre>
+<pre><code>## # A tibble: 1 x 2
+##   `Product.Name == &quot;&quot;`      n
+##                  &lt;lgl&gt;  &lt;int&gt;
+## 1                FALSE 413840</code></pre>
+<pre class="r"><code>amz%&gt;% 
+count(Brand.Name==&quot;&quot;)</code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   `Brand.Name == &quot;&quot;`      n
+##                &lt;lgl&gt;  &lt;int&gt;
+## 1              FALSE 348669
+## 2               TRUE  65171</code></pre>
+<pre class="r"><code>amz%&gt;% 
+count(Price==&quot;&quot;)</code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   `Price == &quot;&quot;`      n
+##           &lt;lgl&gt;  &lt;int&gt;
+## 1         FALSE 407907
+## 2            NA   5933</code></pre>
+<pre class="r"><code>amz%&gt;% 
+count(Rating==&quot;&quot;)</code></pre>
+<pre><code>## # A tibble: 1 x 2
+##   `Rating == &quot;&quot;`      n
+##            &lt;lgl&gt;  &lt;int&gt;
+## 1          FALSE 413840</code></pre>
+<pre class="r"><code>amz%&gt;% 
+count(Reviews==&quot;&quot;) </code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   `Reviews == &quot;&quot;`      n
+##             &lt;lgl&gt;  &lt;int&gt;
+## 1           FALSE 413778
+## 2            TRUE     62</code></pre>
+<pre class="r"><code>amz%&gt;% 
+count(Review.Votes==&quot;&quot;)</code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   `Review.Votes == &quot;&quot;`      n
+##                  &lt;lgl&gt;  &lt;int&gt;
+## 1                FALSE 401544
+## 2                   NA  12296</code></pre>
 </div>
-<div id="step-1.-cleaning-up-the-original-data." class="section level2">
-<h2>Step 1. Cleaning up the original data.</h2>
-<div id="the-unnecessary-fields-such-as-rating.votes-were-removed-from-further-analysis." class="section level4">
-<h4>The unnecessary fields, such as Rating.Votes were removed from further analysis.</h4>
-<pre class="r"><code>#remove column Rating.Votes
-amz&lt;-amz %&gt;% 
-select(-Review.Votes)</code></pre>
+<div id="there-were-no-missing-values-indetified-in-product-name-and-rating-columns.-the-only-sufficent-numbers-of-missing-values-were-found-in-the-following-fields-brand-name-and-review-votes.it-will-be-shown-further-how-certain-brand-names-were-substituted-by-using-their-corresponding-product-names.-also-price-contained-a-small-amount-of-missing-values.-however-the-aproach-introduced-below-that-focuses-on-analyzing-only-the-most-important-products-will-help-to-filter-these-products-out-automatically-and-they-will-not-influence-the-analysis-results." class="section level4">
+<h4>There were no missing values indetified in Product Name and Rating columns. The only sufficent numbers of missing values were found in the following fields: Brand Name and Review Votes.It will be shown further how certain brand names were substituted by using their corresponding product names. Also, Price contained a small amount of missing values. However, the aproach, introduced below, that focuses on analyzing only the most important products, will help to filter these products out automatically and they will not influence the analysis results.</h4>
 </div>
 </div>
 <div id="step-2.-filtering-out-core-productsbrands." class="section level2">
@@ -196,9 +234,9 @@ count(Product.Name)</code></pre>
 pr&lt;-amz %&gt;%
  group_by(Product.Name) %&gt;%
  summarise(revenue=sum(Price),cnt = n())%&gt;%
- arrange(desc(revenue))</code></pre>
-<pre><code>## Warning: package 'bindrcpp' was built under R version 3.4.2</code></pre>
-<pre class="r"><code>#calculate total revenue 
+ arrange(desc(revenue))
+ 
+#calculate total revenue 
 total_revenue&lt;- pr %&gt;% 
 filter(!is.na(revenue)) %&gt;% 
 summarise(total_revenue=sum(revenue))
@@ -211,8 +249,8 @@ mutate(revenue_share=revenue/92540701*100)
 pr&lt;-pr %&gt;%
 mutate(cum_revenue_share=cumsum(revenue_share))</code></pre>
 </div>
-<div id="the-results-showed-that-n1074-products-which-equals-24-of-the-total-number-of-products-were-responsible-for-generating-around-90-of-the-total-revenue.-therefore-it-was-decided-that-further-analysis-would-be-focused-on-the-top-1000-well-performing-products.-using-the-follwing-command-the-top-performing-products-were-filtered-out-from-the-original-dataset." class="section level4">
-<h4>The results showed that n=1074 products, which equals 24% of the total number of products, were responsible for generating around 90% of the total revenue. Therefore, it was decided that further analysis would be focused on the top ~1000 well performing products. Using the follwing command, the top performing products were filtered out from the original dataset.</h4>
+<div id="the-results-showed-that-n1074-products-which-equals-24-of-the-total-number-of-products-were-responsible-for-generating-around-90-of-the-total-revenue.-apart-from-the-business-goal-another-reason-for-selecting-just-the-top-performing-products-was-analytical---the-comlexity-of-this-dataset-and-the-product-name-in-particular.-product-name-is-an-important-field-that-will-be-used-for-deriving-product-features-and-as-it-was-demonstrated-above-its-naming-doesnt-follow-the-same-standards-that-would-allow-to-decompose-it-into-separate-fields-very-easy.-thus-it-was-decided-to-focus-all-the-efforts-and-further-analysis-on-the-top-1000-well-performing-products.-using-the-follwing-command-the-top-performing-products-were-filtered-out-from-the-original-dataset." class="section level4">
+<h4>The results showed that n=1074 products, which equals 24% of the total number of products, were responsible for generating around 90% of the total revenue. Apart from the business goal, another reason for selecting just the top performing products was analytical - the comlexity of this dataset and the Product Name, in particular. Product Name is an important field that will be used for deriving product features and as it was demonstrated above, its naming doesn’t follow the same standards that would allow to decompose it into separate fields very easy. Thus, it was decided to focus all the efforts and further analysis on the top ~1000 well performing products. Using the follwing command, the top performing products were filtered out from the original dataset.</h4>
 <pre class="r"><code>#select products that bring ~90% of revenue
 top90&lt;-pr %&gt;%
 filter (cum_revenue_share&lt;90)</code></pre>
@@ -228,12 +266,13 @@ select(-revenue,-cnt,-revenue_share,-cum_revenue_share)
 
 glimpse(amz_top90)</code></pre>
 <pre><code>## Observations: 318,596
-## Variables: 5
+## Variables: 6
 ## $ Product.Name &lt;fctr&gt; BLU Studio 5.0 C HD - Unlocked Cell Phones - Ret...
 ## $ Brand.Name   &lt;fctr&gt; BLU, BLU, BLU, BLU, BLU, BLU, BLU, BLU, BLU, BLU...
 ## $ Price        &lt;dbl&gt; 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2...
 ## $ Rating       &lt;int&gt; 5, 5, 5, 1, 5, 4, 5, 5, 5, 5, 5, 4, 4, 5, 4, 5, 5...
-## $ Reviews      &lt;fctr&gt; I can not say alot about this phone because I bo...</code></pre>
+## $ Reviews      &lt;fctr&gt; I can not say alot about this phone because I bo...
+## $ Review.Votes &lt;int&gt; 2, 0, 0, 1, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0...</code></pre>
 </div>
 </div>
 <div id="step-3.cleaning-up-the-brand-name." class="section level2">
@@ -394,23 +433,107 @@ as.data.frame()</code></pre>
 </div>
 <div id="step-5.-looking-for-price-outliers." class="section level2">
 <h2>Step 5. Looking for price outliers.</h2>
-<div id="the-next-data-wragling-step-was-to-look-for-potential-outliers-in-the-dataset.-products-with-extemely-large-prices-were-considered-to-be-outliers.-firstly-the-following-commands-were-used-to-calcualte-the-average-price-and-the-standard-deviation." class="section level4">
-<h4>The next data wragling step was to look for potential outliers in the dataset. Products with extemely large prices were considered to be outliers. Firstly, the following commands were used to calcualte the average price and the standard deviation.</h4>
+<div id="the-next-data-wragling-step-was-to-look-for-potential-outliers-in-the-dataset.-first-the-summary-command-below-helped-to-identify-that-there-were-no-products-with-zero-or-negative-prices." class="section level4">
+<h4>The next data wragling step was to look for potential outliers in the dataset. First, the Summary command below helped to identify that there were no products with zero or negative prices.</h4>
+<pre class="r"><code>#summary of price
+summary(amz_top90$Price)                        </code></pre>
+<pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+##   20.99   99.99  179.99  267.71  319.99 2408.73</code></pre>
+</div>
+<div id="the-minimum-price-of-20.99-seemed-reasonable-for-its-corresponding-basic-phone-model.-however-the-maximum-price-of-2408.73-seemed-strange.-thus-products-with-extemely-large-prices-were-considered-to-be-outliers.-the-following-commands-were-used-to-calcualte-the-average-price-and-the-standard-deviation." class="section level4">
+<h4>The minimum price of $20.99 seemed reasonable for its corresponding basic phone model. However, the maximum price of $2408.73 seemed strange. Thus, products with extemely large prices were considered to be outliers. The following commands were used to calcualte the average price and the standard deviation.</h4>
 <pre class="r"><code>#mean_price
 mean_price&lt;- amz_top90 %&gt;% 
 summarise(mean_price=mean(Price))
 
 #standard deviation
 sd_price&lt;- amz_top90 %&gt;% 
-summarise(sd_price=sd(Price))                           </code></pre>
-</div>
-<div id="then-the-new-column-outlier-was-created-by-classifing-products-into-outliers-1-and-non-oultiers-0.-thus-the-phones-with-the-prices-above-the-three-standard-deviations-of-the-mean-1143-were-classified-as-outliers-and-excluded-from-further-analysis." class="section level4">
-<h4>Then the new column, “Outlier”, was created by classifing products into outliers (1) and non-oultiers (0). Thus, the phones with the prices above the three standard deviations of the mean (&gt; $1143) were classified as outliers and excluded from further analysis.</h4>
-<pre class="r"><code>#outlier - if Price more than 3*SD
-amz_top90&lt;-amz_top90%&gt;%
-mutate(Outlier=ifelse(Price&gt;(mean(Price)+3*sd(Price)),1,0))
+summarise(sd_price=sd(Price))   
 
-#exclude outliers
+#filter potential outliers 
+Outliers&lt;-amz_top90%&gt;%
+filter(Price&gt;(mean(Price)+3*sd(Price)))
+
+#count the number of records per each price
+Outliers%&gt;% 
+count(Price)</code></pre>
+<pre><code>## # A tibble: 7 x 2
+##     Price     n
+##     &lt;dbl&gt; &lt;int&gt;
+## 1 1157.00   119
+## 2 1300.00    13
+## 3 2000.00  4993
+## 4 2066.00    14
+## 5 2224.00   111
+## 6 2252.00    39
+## 7 2408.73    26</code></pre>
+</div>
+<div id="then-the-potential-outliers-with-the-price-above-the-three-standard-deviations-of-the-mean-1143-were-saved-as-a-separate-object.-there-were-two-price-points-very-close-to-the-cutoff-point-of-1143.-the-view-command-helped-to-identify-that-these-were-2-phone-models-apple-iphone-7-plus---1157-and-nokia-lumia-930---1300.-since-the-prices-of-these-expensive-models-seemed-reasonable-the-new-cutoff-point-to-identify-outliers-was-1300.-after-that-the-new-column-outlier-was-created-by-classifing-products-into-outliers-1-and-non-oultiers-0.-thus-the-phones-with-the-prices-above-1300-26-products-were-classified-as-outliers-and-excluded-from-further-analysis." class="section level4">
+<h4>Then the potential outliers with the price above the three standard deviations of the mean (&gt;$1143) were saved as a separate object. There were two price points very close to the cutoff point of $1143. The View command helped to identify that these were 2 phone models: Apple iPhone 7 Plus - $1157 and Nokia Lumia 930 - $1300. Since the prices of these expensive models seemed reasonable, the new cutoff point to identify outliers was $1300. After that the new column “Outlier”, was created by classifing products into outliers (1) and non-oultiers (0). Thus, the phones with the prices above $1300 (26 products) were classified as outliers and excluded from further analysis.</h4>
+<pre class="r"><code>#outlier - if Price more than $1300
+amz_top90&lt;-amz_top90%&gt;%
+mutate(Outlier=ifelse(Price&gt;(1300),1,0))
+
+#group outliers by product name - 26 products were considered to be outliers
+amz_top90%&gt;%
+filter(Outlier==1)%&gt;%
+count(Product.Name)%&gt;%
+as.data.frame()</code></pre>
+<pre><code>##                                                                                                                                                               Product.Name
+## 1                                                                                                                          Apple iPhone 6 Plus 128GB Silver Verizon 4G LTE
+## 2                                                                                                                                             Blu LIFE 8 Unlocked (Yellow)
+## 3                                                                                                                  BLU Life 8 XL Smartphone - Unlocked - Global GSM - Pink
+## 4                                                                                                     BLU Studio 5.0 C HD - Unlocked Cell Phones - Retail Packaging - Blue
+## 5                                                                                                                       BLU Studio 5.0 C HD Smartphone - Unlocked - Yellow
+## 6                                                                                                                            BLU Studio 5.0 C HD Unlocked Cellphone, White
+## 7                                                                          BLU Studio 5.0C 1.3 GHz Dual Core, Android 4.4 KK, 4G HSPA+ with 5MP Camera - Unlocked (Orange)
+## 8                                                                                                                     BLU Studio Selfie - Smartphone - GSM Unlocked - Grey
+## 9                                   Lenovo S8 S898T 5.3 Inch IPS Smart Cell Phone Android 4.2 MTK6589 Quad Core 1.5GHz RAM 1GB+ROM 8GB GSM Dual SIM 1280x720 13MP (Silver)
+## 10 Lenovo S820 HD4.7 Inch Unlocked Android Smartphone - (1280X720) MTK6589 Quad Core 1.2GHz 1GB RAM Android 4.2 2MP/13MP AF LED Flash IPS GPS TF-White(Rooted+Google Play)
+## 11                                                                     Lenovo S960 VIBE X Smartphone 5.0 Inch FHD Screen MTK6589T 1.5GHz 2GB 16GB 6.9mm Ultrathin - Silver
+## 12                Lenovo Vibe Shot / Z90-7 Unlocked 5 inch IPS TFT Screen Android OS 5.0 Phone, MSM8939 Octa Core, RAM: 3G ROM: 32G, Dual SIM, FDD-LTE 4G Smartphone Black
+## 13                                                                                          Lenovo VIBE X S960 IdeaPhone 5&quot; 1080P 13MP Quad-Core Unlocked Smartphone Phone
+## 14                                                     Lenovo VIBE Z2 5.5 inch Android 4.4 Smart Phone,Qualcomm Snapdragon410 Quad Core 1.2GHz, RAM: 2GB, ROM: 32GB, White
+## 15                                                                                      LG G3 Stylus D693 Unlocked GSM Quad-Core Android Smartphone w/ 13MP Camera - Black
+## 16                                                                                             Motorola Moto E (2nd Generation) - White - 8 GB - Global GSM Unlocked Phone
+## 17                                                                                           Samsung Galaxy A3 A300M 16GB Unlocked GSM 4G LTE Quad-Core Smartphone - Black
+## 18                                                           Samsung Galaxy A5 A500M 16GB Unlocked GSM 4G LTE Quad-Core Smartphone - Unlocked - Retail Packaging - (Black)
+## 19                                                                             Samsung Galaxy Alpha G850F 32GB Unlocked GSM Quad-Core Octa-Core 4G LTE Smartphone - Silver
+## 20                                                                            Samsung Galaxy S4 Frost White 16GB I9500 i337 4G LTE GSM Factory Unlocked Android Smartphone
+## 21                                                                                  Samsung Galaxy S4 mini GT-i9190 - 8GB - Purple Mirage (Unlocked) International Version
+## 22                                                                                            Samsung Galaxy S4 Mini GT-i9192 - 8GB Factory Unlocked Dual Sim- Blue Arctic
+## 23                                                                                     Samsung Galaxy S4 Mini GT-I9192 GSM Factory Unlocked Dual Sim - 8GB (Black Leather)
+## 24                                                                                                       Samsung Galaxy S5 Mini G800h 16gb Hspa+ Unlocked GSM Phone - Blue
+## 25                                                                         Samsung Galaxy S6 SM-G920i 64GB - SPECIAL EDITION - 5.1&quot; QHD Blue Topaz - International Version
+## 26                                                                                                                                Samsung Note 4 N910F 32 GB, Blossom Pink
+##      n
+## 1   11
+## 2  329
+## 3  471
+## 4  844
+## 5  834
+## 6  794
+## 7   20
+## 8  710
+## 9  111
+## 10  15
+## 11   9
+## 12  14
+## 13  58
+## 14   8
+## 15   8
+## 16  10
+## 17  11
+## 18  26
+## 19  37
+## 20  11
+## 21  20
+## 22  10
+## 23  11
+## 24 674
+## 25  39
+## 26  98</code></pre>
+<pre class="r"><code>#exclude outliers
 amz_top90&lt;-amz_top90%&gt;% 
 filter(Outlier==0)                  </code></pre>
 </div>
@@ -432,17 +555,18 @@ mutate(Cum_Revenue_Share=cumsum(Revenue_Share))</code></pre>
 </div>
 <div id="lastly-the-updated-dataset-with-the-revenue-information-was-merged-with-the-list-containing-other-product-information." class="section level4">
 <h4>Lastly, the updated dataset with the revenue information was merged with the list containing other product information.</h4>
-<pre class="r"><code>#append Brand.Name, Price, Rating, Reviews to the final list of products(n=1026, 23%) that bring 78% of revenue
+<pre class="r"><code>#append Brand.Name, Price, Rating, Reviews to the final list of products(n=1028, 23%) that bring 78% of revenue
 amz_clean&lt;-right_join(amz_top90, amz_clean) </code></pre>
 <pre><code>## Joining, by = &quot;Product.Name&quot;</code></pre>
 <pre class="r"><code>glimpse(amz_clean)  </code></pre>
-<pre><code>## Observations: 302,339
-## Variables: 11
+<pre><code>## Observations: 302,471
+## Variables: 12
 ## $ Product.Name      &lt;fctr&gt; BLU Studio 6.0 Unlocked Cellphone, White, B...
 ## $ Brand.Name        &lt;fctr&gt; BLU, BLU, BLU, BLU, BLU, BLU, BLU, BLU, BLU...
 ## $ Price             &lt;dbl&gt; 971.6, 971.6, 971.6, 971.6, 971.6, 971.6, 97...
 ## $ Rating            &lt;int&gt; 1, 5, 1, 5, 1, 2, 5, 1, 4, 1, 1, 1, 4, 1, 1,...
 ## $ Reviews           &lt;fctr&gt; did not recieve data on this phone had to r...
+## $ Review.Votes      &lt;int&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0,...
 ## $ Brand.Name.Clean  &lt;chr&gt; &quot;BLU&quot;, &quot;BLU&quot;, &quot;BLU&quot;, &quot;BLU&quot;, &quot;BLU&quot;, &quot;BLU&quot;, &quot;B...
 ## $ Outlier           &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,...
 ## $ Revenue           &lt;dbl&gt; 660688, 660688, 660688, 660688, 660688, 6606...
@@ -450,8 +574,8 @@ amz_clean&lt;-right_join(amz_top90, amz_clean) </code></pre>
 ## $ Revenue_Share     &lt;dbl&gt; 0.7139432, 0.7139432, 0.7139432, 0.7139432, ...
 ## $ Cum_Revenue_Share &lt;dbl&gt; 0.7139432, 0.7139432, 0.7139432, 0.7139432, ...</code></pre>
 </div>
-<div id="the-final-dataset-consists-of-the-core-1026-products-23-of-the-initial-portfolio-that-produced-78-of-the-total-revenue.-this-ratio-corresponds-to-the-8020-pareto-rule.-thus-all-the-data-wrangling-manipulations-above-helped-to-remove-the-long-tail-of-products-less-important-for-the-total-revenue-and-to-decrease-the-number-of-cases-to-300k." class="section level4">
-<h4>The final dataset consists of the core 1026 products (23% of the initial portfolio) that produced 78% of the total revenue. This ratio corresponds to the 80/20 Pareto rule. Thus, all the data wrangling manipulations above helped to remove the long tail of products, less important for the total revenue and to decrease the number of cases to ~300K.</h4>
+<div id="the-final-dataset-consists-of-the-core-1028-products-23-of-the-initial-portfolio-that-produced-78-of-the-total-revenue.-this-ratio-corresponds-to-the-8020-pareto-rule.-thus-all-the-data-wrangling-manipulations-above-helped-to-remove-the-long-tail-of-products-less-important-for-the-total-revenue-and-to-decrease-the-number-of-cases-to-300k." class="section level4">
+<h4>The final dataset consists of the core 1028 products (23% of the initial portfolio) that produced 78% of the total revenue. This ratio corresponds to the 80/20 Pareto rule. Thus, all the data wrangling manipulations above helped to remove the long tail of products, less important for the total revenue and to decrease the number of cases to ~300K.</h4>
 </div>
 </div>
 <div id="step-6.-deriving-product-features." class="section level2">
@@ -467,12 +591,13 @@ mutate(Features.Txt=gsub(regex,&quot;\\1 \\3&quot;,Features.Txt, ignore.case=TRU
 <div id="the-final-dataset-includes-30-variables-and-looks-like-this." class="section level4">
 <h4>The final dataset includes 30 variables and looks like this.</h4>
 <pre class="r"><code>str (amz_clean_features)</code></pre>
-<pre><code>## Classes 'tbl_df', 'tbl' and 'data.frame':    302339 obs. of  30 variables:
+<pre><code>## Classes 'tbl_df', 'tbl' and 'data.frame':    302471 obs. of  31 variables:
 ##  $ Product.Name     : Factor w/ 4410 levels &quot;'ATT Wireless LG CU720 Shine for in Red'&quot;,..: 967 967 967 967 967 967 967 967 967 967 ...
 ##  $ Brand.Name       : Factor w/ 385 levels &quot;&quot;,&quot;Acer&quot;,&quot;Aeku&quot;,..: 35 35 35 35 35 35 35 35 35 35 ...
 ##  $ Price            : num  972 972 972 972 972 ...
 ##  $ Rating           : int  1 5 1 5 1 2 5 1 4 1 ...
 ##  $ Reviews          : Factor w/ 162492 levels &quot;&quot;,&quot;''''''', TURKCE, ENGLISHThis Brand New Samsung Galaxy S6 Edge G925 64GB White Factory Unlocked GSM Phone comes &quot;| __truncated__,..: 17238 115105 133163 92811 144585 129158 49285 81197 120809 44344 ...
+##  $ Review.Votes     : int  0 0 0 0 0 0 0 0 0 1 ...
 ##  $ Brand.Name.Clean : chr  &quot;BLU&quot; &quot;BLU&quot; &quot;BLU&quot; &quot;BLU&quot; ...
 ##  $ Outlier          : num  0 0 0 0 0 0 0 0 0 0 ...
 ##  $ Revenue          : num  660688 660688 660688 660688 660688 ...
@@ -498,6 +623,129 @@ mutate(Features.Txt=gsub(regex,&quot;\\1 \\3&quot;,Features.Txt, ignore.case=TRU
 ##  $ Feature.Used     : chr  &quot;&quot; &quot;&quot; &quot;&quot; &quot;&quot; ...
 ##  $ Feature.Geo      : chr  &quot;&quot; &quot;&quot; &quot;&quot; &quot;&quot; ...
 ##  $ Feature.Screen   : chr  &quot;&quot; &quot;&quot; &quot;&quot; &quot;&quot; ...</code></pre>
+</div>
+<div id="after-deriving-the-product-features-the-following-commands-were-used-to-identify-how-many-mising-records-each-field-contained.-color-lockedunlocked-storage-phone-type-and-connectivity-are-the-features-available-in-at-least-every-second-record." class="section level4">
+<h4>After deriving the product features, the following commands were used to identify how many mising records each field contained. Color, Locked/Unlocked, Storage, Phone Type, and Connectivity are the features available in at least every second record.</h4>
+<pre class="r"><code>#checking for missing values in product feature fields
+amz_clean_features%&gt;% 
+count(Feature.CPU==&quot;&quot;) </code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   `Feature.CPU == &quot;&quot;`      n
+##                 &lt;lgl&gt;  &lt;int&gt;
+## 1               FALSE  20550
+## 2                TRUE 281921</code></pre>
+<pre class="r"><code>amz_clean_features%&gt;% 
+count(Feature.Battery==&quot;&quot;) </code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   `Feature.Battery == &quot;&quot;`      n
+##                     &lt;lgl&gt;  &lt;int&gt;
+## 1                   FALSE   5704
+## 2                    TRUE 296767</code></pre>
+<pre class="r"><code>amz_clean_features%&gt;% 
+count(Feature.Ram==&quot;&quot;) </code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   `Feature.Ram == &quot;&quot;`      n
+##                 &lt;lgl&gt;  &lt;int&gt;
+## 1               FALSE   8574
+## 2                TRUE 293897</code></pre>
+<pre class="r"><code>amz_clean_features%&gt;% 
+count(Feature.Storage==&quot;&quot;) </code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   `Feature.Storage == &quot;&quot;`      n
+##                     &lt;lgl&gt;  &lt;int&gt;
+## 1                   FALSE 189005
+## 2                    TRUE 113466</code></pre>
+<pre class="r"><code>amz_clean_features%&gt;% 
+count(Feature.Rugged==&quot;&quot;) </code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   `Feature.Rugged == &quot;&quot;`      n
+##                    &lt;lgl&gt;  &lt;int&gt;
+## 1                  FALSE   1125
+## 2                   TRUE 301346</code></pre>
+<pre class="r"><code>amz_clean_features%&gt;% 
+count(Feature.Camera==&quot;&quot;) </code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   `Feature.Camera == &quot;&quot;`      n
+##                    &lt;lgl&gt;  &lt;int&gt;
+## 1                  FALSE  51284
+## 2                   TRUE 251187</code></pre>
+<pre class="r"><code>amz_clean_features%&gt;% 
+count(Feature.Color ==&quot;&quot;) </code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   `Feature.Color == &quot;&quot;`      n
+##                   &lt;lgl&gt;  &lt;int&gt;
+## 1                 FALSE 287480
+## 2                  TRUE  14991</code></pre>
+<pre class="r"><code>amz_clean_features%&gt;% 
+count(Feature.Lock==&quot;&quot;) </code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   `Feature.Lock == &quot;&quot;`      n
+##                  &lt;lgl&gt;  &lt;int&gt;
+## 1                FALSE 243553
+## 2                 TRUE  58918</code></pre>
+<pre class="r"><code>amz_clean_features%&gt;% 
+count(Feature.Type==&quot;&quot;) </code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   `Feature.Type == &quot;&quot;`      n
+##                  &lt;lgl&gt;  &lt;int&gt;
+## 1                FALSE 223691
+## 2                 TRUE  78780</code></pre>
+<pre class="r"><code>amz_clean_features%&gt;% 
+count(Feature.Mhz==&quot;&quot;) </code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   `Feature.Mhz == &quot;&quot;`      n
+##                 &lt;lgl&gt;  &lt;int&gt;
+## 1               FALSE   1921
+## 2                TRUE 300550</code></pre>
+<pre class="r"><code>amz_clean_features%&gt;% 
+count(Feature.Conn==&quot;&quot;) </code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   `Feature.Conn == &quot;&quot;`      n
+##                  &lt;lgl&gt;  &lt;int&gt;
+## 1                FALSE 152216
+## 2                 TRUE 150255</code></pre>
+<pre class="r"><code>amz_clean_features%&gt;% 
+count(Feature.Warranty==&quot;&quot;) </code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   `Feature.Warranty == &quot;&quot;`      n
+##                      &lt;lgl&gt;  &lt;int&gt;
+## 1                    FALSE  64540
+## 2                     TRUE 237931</code></pre>
+<pre class="r"><code>amz_clean_features%&gt;% 
+count(Feature.Os==&quot;&quot;) </code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   `Feature.Os == &quot;&quot;`      n
+##                &lt;lgl&gt;  &lt;int&gt;
+## 1              FALSE  56688
+## 2               TRUE 245783</code></pre>
+<pre class="r"><code>amz_clean_features%&gt;% 
+count(Feature.Sim==&quot;&quot;) </code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   `Feature.Sim == &quot;&quot;`      n
+##                 &lt;lgl&gt;  &lt;int&gt;
+## 1               FALSE  25613
+## 2                TRUE 276858</code></pre>
+<pre class="r"><code>amz_clean_features%&gt;% 
+count(Feature.Carrier==&quot;&quot;) </code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   `Feature.Carrier == &quot;&quot;`      n
+##                     &lt;lgl&gt;  &lt;int&gt;
+## 1                   FALSE  50517
+## 2                    TRUE 251954</code></pre>
+<pre class="r"><code>amz_clean_features%&gt;% 
+count(Feature.Used==&quot;&quot;) </code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   `Feature.Used == &quot;&quot;`      n
+##                  &lt;lgl&gt;  &lt;int&gt;
+## 1                FALSE  18792
+## 2                 TRUE 283679</code></pre>
+<pre class="r"><code>amz_clean_features%&gt;% 
+count(Feature.Screen==&quot;&quot;) </code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   `Feature.Screen == &quot;&quot;`      n
+##                    &lt;lgl&gt;  &lt;int&gt;
+## 1                  FALSE  35708
+## 2                   TRUE 266763</code></pre>
 </div>
 </div>
 </div>
