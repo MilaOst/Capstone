@@ -569,16 +569,37 @@ boxplot(Price~Rating, data=amz_clean_features, boxwex = 0.5,horizontal = TRUE, l
 
 ```
 
-#### In order to explore the relationship, we look at the scatterplot of Rating vs. Price. It seems that there are slightly more observations with higher prices in the area with higher ratings and vice versa, but the chart is very overplotted to be able to understand what's going on. The reason for that is that the current dataset contains multiple records with the same price points but with the different ratings. On average, each product was sold 300 times. Thus, each product has 300 dots with the same price point on the x axis and different corresponding levels of ratings on the y axis. Technically, it doesn't make sense to estimate and look for ay kind of relationships between duplicate price points and ratings. Apart from this, currently Rating is presented on an interval type of scale, where each value is discrete. Even if we're using jittering, interval type of data is not very easy to plot and to discern the relationship. Thus, if we need to understand if there is any kind of relationships between rating and price, rating and brand, rating and other product features, we should look at the different dataset where each record is unique and contains information about a specific product only once, with no duplicates. 
+#### In order to explore the relationship, we look at the scatterplot of Rating vs. Price. It seems that there are slightly more observations with higher prices in the area with higher ratings and vice versa, but the chart is very overplotted to be able to understand what's going on. 
 
 ```{r}
 #Scatterplot - Rating vs. Price 
 ggplot(amz_clean_features, aes(y=Rating, x=Price))+
-geom_jitter(alpha=0.2, shape=1, width=5)+
-stat_smooth(method="lm", se=F)
+geom_jitter(alpha=0.2, shape=1, width=5)
 ```
 
-#### By summarizing all fields of this dataset, we get the new dataset where each record is a separate product with its corresponding price and features. As for the rating, we take an average rating of all the ratings this product received in the original dataset. There are several reasons why we are using average rating vs. other summary statistics. Unlike median, mean is affected by all range of values. As we demonstrated above, this dataset is already very skewed towards the higher rating part of the scale. If a specific product contains several low ratings, we would like to capture that by using mean to be able to show that the rating of that product is not perfect. Second, mean allows to obtain continuous values vs. original or in case of taking median, discrete values. In fact, customer perception is not discrete and it's the function of how the satisfaction question is asked and what points it allows customers to choose from. In this case, customers can only choose among 1,2,3,4, or 5 stars to demonstrate their satisfaction. But it does not necessarily mean that their perception is exactly 3 stars, as it might be 3.2 or 3.7, etc. Third, if we look at how Amazon.com summarizes ratings of products and showing it to customers, we'll see that it uses mean, not median or other statistics to show the rating of the product.For example, if we look at the rating of the following product on its website [here](https://www.amazon.com/Apple-iPhone-16-GB-Black/dp/B003U6628A/ref=sr_1_1?s=wireless&ie=UTF8&qid=1511125142&sr=1-1&keywords=Apple+iPhone+4+16GB+%28Black%29+-+AT%26T), we see that it's 3.7 out of 5 stars.  
+####The reason for that is that the current dataset contains multiple records with the same price points but with the different ratings. Let's take a look at one product example - Apple iPhone 4 16GB (Black) - AT&T. By examining the table, we see that this product was sold 617 times where each row is a separate purchase by a different customer. This table contains the rows that are identical except the following fields: Rating, Reviews, Review.Votes. It makes sense because each purchase is unique and each customer who purchased this product had a different experience reflected in their reviews and rating scores.
+
+```{r}
+#Look at one product - Apple iPhone 4 16GB (Black) - AT&T
+iPhone4_16GB_Black_ATT<- amz_clean_features%>% 
+filter (Product.Name=="Apple iPhone 4 16GB (Black) - AT&T")
+View(iPhone4_16GB_Black_ATT)
+```
+
+#### Next, we run a summary for all the fields available for this product to demonstrate what we saw in the table.So brand name, price, storage, color, and carrier are the same for each purchase. There is some variability in rating and review votes. 
+
+```{r}
+#Summary for product - Apple iPhone 4 16GB (Black) - AT&T
+summary(as.factor(iPhone4_16GB_Black_ATT$Brand.Name.Clean))
+summary(iPhone4_16GB_Black_ATT$Price)
+summary(iPhone4_16GB_Black_ATT$Rating)
+summary(iPhone4_16GB_Black_ATT$Review.Votes)
+summary(as.factor(iPhone4_16GB_Black_ATT$Feature.Storage))
+summary(as.factor(iPhone4_16GB_Black_ATT$Feature.Color))
+summary(as.factor(iPhone4_16GB_Black_ATT$Feature.Carrier))
+```
+
+#### It means if we continue to use the original dataset to find the relationships betweeen ratings and price and product features, we will be using duplicate rows which is not right. Technically, it doesn't make sense to estimate and look for any kind of relationships between duplicate price points and ratings. Apart from this, currently Rating is presented on an interval type of scale, where each value is discrete. Even if we're using jittering, interval type of data is not very easy to plot and to discern the relationship. Thus, if we need to understand if there is any kind of relationship between rating and price, rating and brand, rating and other product features, we should look at the different dataset where each record is unique and contains information about a specific product only once, with no duplicates. Therefore, we need to reduce the data to the product level to remove redundancy about product information. Moreover, by doing this, we're not losing any information about the product price and features. By summarizing all fields of this dataset, we get the new dataset where each record is a separate product with its corresponding price and features. As for the rating, we take an average rating of all the ratings this product received in the original dataset. There are several reasons why we are using average rating vs. other summary statistics. Unlike median, mean is affected by all range of values. As we demonstrated above, this dataset is already very skewed towards the higher rating part of the scale. If a specific product contains several low ratings, we would like to capture that by using mean to be able to show that the rating of that product is not perfect. Second, mean allows to obtain continuous values vs. original or in case of taking median, discrete values. In fact, customer perception is not discrete and it's the function of how the satisfaction question is asked and what points it allows customers to choose from. In this case, customers can only choose among 1,2,3,4, or 5 stars to demonstrate their satisfaction. But it does not necessarily mean that their perception is exactly 3 stars, as it might be 3.2 or 3.7, etc. Third, if we look at how Amazon.com summarizes ratings of products and showing it to customers, we'll see that it uses mean, not median or other statistics to show the rating of the product.For example, if we look at the rating of the following product on its website [here](https://www.amazon.com/Apple-iPhone-16-GB-Black/dp/B003U6628A/ref=sr_1_1?s=wireless&ie=UTF8&qid=1511125142&sr=1-1&keywords=Apple+iPhone+4+16GB+%28Black%29+-+AT%26T), we see that it's 3.7 out of 5 stars.  
 
 ```{r}
 #Summarize products
@@ -605,7 +626,8 @@ amz_products<-amz_clean_features%>%
 			  Feature.Used=max(Feature.Used, na.rm=TRUE),
 			  Feature.Geo=max(Feature.Geo, na.rm=TRUE),
 			  Feature.Screen=max(Feature.Screen, na.rm=TRUE),
-			  Feature.Os=max(Feature.Os, na.rm=TRUE)
+			  Feature.Os=max(Feature.Os, na.rm=TRUE),
+			  counts=n()
 			  )
 ```
 
@@ -677,6 +699,19 @@ boxplot(avg_price~brand.name.group, data=amz_products, boxwex = 0.5,horizontal =
 ```{r}
 #Distribution of rating for each brand
 boxplot(avg_rating~brand.name.group, data=amz_products, boxwex = 0.5,horizontal = FALSE, las = 1, cex.axis = 0.6, xlab="Brand", ylab="Rating")
+```
+
+#### We build a view where we can represent ratings vs. prices for each brand separately. In addition, the size of the circles means sales (how many times each product was purchased). At the first sight, it seems that the linear relationships discovered for the whole dataset hold true for each brand separately, except Blackberry and BLU. However, if we look closer at the size of the circles, for example, Nokia, we notice that the influential leverage points that affect the slope of the line, are small. It means that those points contain less sales. It doesn't mean that the smallest point corresponds to 1 sale, becasue the minimum is 13 sales (we look at the summary of counts to check this). But this is still rather small compared to the average sales for each product (almost 300 times).Even though, outliers (product with prices above $1300) were previously excluded from the analysis, it looks like there are still some products in the range of $500-1000 that could be outliers affecting the relationships between rating and price for specific brands such as Nokia, Blackberry, BLU, Samsung, LG.
+
+```{r}
+#Rating vs. Price by Brand	  
+ggplot(amz_products, aes(y=avg_rating, x=avg_price,col=brand.name.group, size=counts))+
+geom_point(shape=1, alpha=0.6)+
+geom_smooth(method="lm", se=FALSE)+
+facet_grid(.~brand.name.group)
+
+#Summary of product sales
+summary(amz_products$counts)
 ```
 
 #### Next, with an aim to understand what other variables might have some relationships with rating, it makes sense to investigate product features that were extracted previously as potential influencers of product rating. We first look at Feature.Storage as one of the features that contained the smallest amount of missing values. Before building the distribution of ratings for each storage level, we first need to clean this field.
@@ -753,4 +788,188 @@ mutate(Feature.Conn=case_when(!is.na(Feature.Conn) ~ Feature.Conn,
 boxplot(avg_rating~Feature.Conn, data=amz_products, boxwex = 0.5,horizontal = FALSE, las = 1, cex.axis = 0.6, xlab="Technology", ylab="Rating")
 ```
 
-#### Other product features that could potentially influence product rating and had one of the smallest amount of missing values, were Feature.Lock and Feature.Type. However, it turns out that these fields are not appropriate for further analysis. Almost all phones in this dataset are unlocked which makes this field useless. As for phone type, by exploring and filtering the dataset with the help of View, we noticed that for example, iPhones are not smartphones, but phones. So this field also does not represent any additional value for further analysis. Other meaningful and potentially useful fields that will be explored further: Feature.Color, Feature.Camera, Feature.Os, Feature.Screen.
+#### Other product features that could potentially influence product rating and had one of the smallest amount of missing values, were Feature.Lock and Feature.Type. However, it turns out that these fields are not appropriate for further analysis. Almost all phones in this dataset are unlocked which makes this field useless. As for phone type, by exploring and filtering the dataset with the help of View, we noticed that for example, iPhones are not smartphones, but phones. So this field also does not represent any additional value for further analysis. 
+
+```{r}
+#group by Feature.Lock 
+amz_products%>% 
+count(Feature.Lock)%>% 
+as.data.frame()
+
+#group by Feature.Type 
+amz_products%>% 
+count(Feature.Type)%>% 
+as.data.frame()
+```
+
+#### Next we clean other features: Os, Color, Sim, Geo, Warranty, Used, and Carrier.
+
+```{r}
+#clean Feature.Os
+amz_products<-amz_products %>%
+mutate(Feature.Os=replace(Feature.Os, Feature.Os=="", NA)) %>%
+mutate(Feature.Os=case_when(!is.na(Feature.Os) ~ Feature.Os,
+                               grepl('iPhone',	Features.Txt,ignore.case=TRUE) ~ 'iOs',
+							   grepl('Apple',	Features.Txt,ignore.case=TRUE) ~ 'iOs',
+							   grepl('BlackBerry',	Features.Txt,ignore.case=TRUE) ~ 'BlackBerry',
+							   grepl('Microsoft',	Features.Txt,ignore.case=TRUE) ~ 'Windows',
+							   grepl('Lumia',	Features.Txt,ignore.case=TRUE) ~ 'Windows',
+							   grepl('nokia n9',	Features.Txt,ignore.case=TRUE) ~ 'meego',
+							   grepl('nokia e[67]',Features.Txt,ignore.case=TRUE) ~ 'symbian', # also E71 E72
+							   grepl('nokia',Features.Txt,ignore.case=TRUE) ~ 'feature', 
+							   grepl('(galaxy|droid)',Features.Txt,ignore.case=TRUE) ~ 'Androind',
+							   grepl('sony xperia',Features.Txt,ignore.case=TRUE) ~ 'Androind',
+							   grepl('samsung (note|captivate)',Features.Txt,ignore.case=TRUE) ~ 'Androind',
+							   grepl('samsung (convoy|rugby|u380|evergreen|flight|knack|alias)',Features.Txt,ignore.case=TRUE) ~ 'feature', 
+							   grepl('alcatel onetouch',Features.Txt,ignore.case=TRUE) ~ 'Androind',
+							   grepl('motorola razr v3',Features.Txt,ignore.case=TRUE) ~ 'feature', 
+							   grepl('motorola (tundra|v860)',Features.Txt,ignore.case=TRUE) ~ 'feature', 
+							   grepl('lg (a275|xeon|neon|octane|xenon|xpression)',Features.Txt,ignore.case=TRUE) ~ 'feature', 
+							   grepl('asus zenfone',Features.Txt,ignore.case=TRUE) ~ 'Androind',
+							   grepl('nexus',Features.Txt,ignore.case=TRUE) ~ 'Androind',
+							   grepl('moto [gzxe]',Features.Txt,ignore.case=TRUE) ~ 'Androind',
+							   grepl('htc (status )?(one|desire|chacha|10)',Features.Txt,ignore.case=TRUE) ~ 'Androind',
+							   grepl('htc 8x',Features.Txt,ignore.case=TRUE) ~ 'Windows',
+							   grepl('zte axon',Features.Txt,ignore.case=TRUE) ~ 'Androind',
+							   grepl('\\blg (electronics )?[vg]',Features.Txt,ignore.case=TRUE) ~ 'Androind',
+							   grepl('LG Electronics LG-D855-G3',Features.Txt,ignore.case=TRUE) ~ 'Androind',
+							   grepl('LG enV2 VX-9100',Features.Txt,ignore.case=TRUE) ~ 'feature',
+							   grepl('LG KP500 Cookie',Features.Txt,ignore.case=TRUE)  ~ 'feature',
+							   grepl('Pantech Burst P9070',Features.Txt,ignore.case=TRUE) ~ 'Androind',
+							   grepl('Posh Memo S580',Features.Txt,ignore.case=TRUE) ~ 'Androind',
+							   grepl('Posh Micro X S240',Features.Txt,ignore.case=TRUE) ~ 'Androind',
+							   grepl('VIVO IV',Features.Txt,ignore.case=TRUE) ~ 'Androind',
+							   grepl('\\blg optimus',Features.Txt,ignore.case=TRUE) ~ 'Androind',
+							   grepl('\\bBLU\\b',Features.Txt,ignore.case=TRUE) ~ 'Androind',
+							   grepl('(Huawei|OnePlus|ecoopro)',Features.Txt,ignore.case=TRUE) ~ 'Androind',
+							   grepl('lenovo (a916|vibe)',Features.Txt,ignore.case=TRUE) ~ 'Androind',
+							   grepl('honor 8',Features.Txt,ignore.case=TRUE) ~ 'Androind',
+							   grepl('one x',Features.Txt,ignore.case=TRUE) ~ 'Androind',
+							   grepl('pure mini',Features.Txt,ignore.case=TRUE) ~ 'Androind',
+							   grepl('nextbit robin',Features.Txt,ignore.case=TRUE) ~ 'Androind',
+							   grepl('Jitterbug',Features.Txt,ignore.case=TRUE) ~ 'feature', 
+							   grepl('Casio GzOne',Features.Txt,ignore.case=TRUE) ~ 'feature', 
+							   grepl('cat phone s60',Features.Txt,ignore.case=TRUE) ~ 'Android', 
+							   grepl('figo atrium',Features.Txt,ignore.case=TRUE) ~ 'Android', 
+							   TRUE ~ as.character(Feature.Os)))
+				   
+
+#Clean Feature.Os
+amz_products<-amz_products %>%
+mutate(Feature.Os=case_when(Feature.Os %in% (c("ANDROID","Androind","KitKat","Lollipop")) ~ "Android",
+                            Feature.Os %in% (c("meego","symbian")) ~ "Other", 				
+						    TRUE ~ as.character(Feature.Os)))
+#Substitute NA with "Other"
+amz_products<-amz_products %>%
+mutate(Feature.Os=replace(Feature.Os, is.na(Feature.Os), "Other")) 							
+
+#group by Feature.Os							   
+amz_products%>% 
+count(Feature.Os)%>% 
+as.data.frame()	
+
+#Clean Feature.Color
+amz_products<-amz_products %>%
+mutate(Feature.Color=replace(Feature.Color, Feature.Color=="", "Other")) %>%
+mutate(Feature.Color=case_when(Feature.Color %in% (c("Amber Gold","Champagne Gold","Copper","COPPER","Copper Gold","Frosted Gold","GOLD","Gold    Gold","Gold    Gold Platinum","Gold   Gold","Gold Platinum","Golden","Metallic Gold","Platinum Gold","Sunrise Gold","TOPAZ GOLD")) ~ "Gold",
+                            Feature.Color %in% (c("black","BLACK","Black    Black","Black Sapphire","Black Titanium","Carbon   Black","Carbon Black","CARBON BLACK","Charcoal Black","Metallic Black","Pearl    Black","Sapphire Black","Titan    Black","TITAN    BLACK","Titan Black")) ~ "Black", 
+							Feature.Color %in% (c("Black   Grey","Black   White","Black Gold","Black Pink","Black Red","Brown Black","Gold    White","Gold   Grey","Gray   Red","Multicolor   BLACK","Multicolor   BLUE","Multicolor   GOLD","Multicolor   WHITE","Opal Blue   Blue White","Pink Gold","Rose   White","Silver   Gold","Silver   White","White   Red","White Blue","White Silver")) ~ "Multicolor",
+							Feature.Color %in% (c("BLUE","BLUE CORAL","Blue Topaz","Camo Blue","Carbon Blue","Dark Blue","Ocean Blue","Phthalo Blue","Sapphire Blue","Sky Blue","TITAN    BLUE"))~"Blue",
+							Feature.Color %in% (c("Camo Green","Emerald Green","Green Emerald","Titan    Green"))~"Green",
+							Feature.Color %in% (c("Camo White","Dazzling White","Moonlight White","Pearl White","Shimmery White","TITAN    WHITE","white","WHITE","White      White","White    White","White    WHITE","White Pearl"))~"White",
+							Feature.Color %in% (c("Carbon Gray","Chromium Silver","Dark Grey","Glacier","Glacier Silver","GLACIER SILVER","Gray","Gray      Gray","grey","Grey","GREY","Moonlight Silver","Platinum","PLATINUM","silver","SILVER","Silver   Dark Platinum","Silver Titanium","Titan","TITAN","Titanium","Titanium Gray","TITANIUM GREY","Titanium Silver"))~"Silver",
+							Feature.Color %in% (c("CORAL RED"))~"Red",
+							Feature.Color %in% (c("Lavender","Purple","PURPLE"))~"Purple",
+							Feature.Color %in% (c("Opal Pink","PINK"))~"Pink",
+							Feature.Color %in% (c("Orange   Orange"))~"Orange",
+							Feature.Color %in% (c("Titan    Yellow"))~"Yellow",
+							Feature.Color %in% (c("Rose","Rose Gold","ROSE GOLD"))~"Rose Gold",
+							Feature.Color %in% (c("Dark"))~"Other",
+							TRUE ~ as.character(Feature.Color)))
+							
+#group by Feature.Color							   
+amz_products%>% 
+count(Feature.Color)%>% 
+as.data.frame()	
+
+#Clean Feature.Sim
+amz_products<-amz_products %>%
+mutate(Feature.Sim=replace(Feature.Sim, Feature.Sim=="", "Single")) %>%
+mutate(Feature.Sim=case_when(Feature.Sim %in% (c("DualMicro SIM","Dualsim","DualSim","DualSIM")) ~ "Dual",
+								Feature.Sim %in% (c("Single Sim","Single SIM","SINGLE SIM")) ~ "Single",
+								TRUE ~ as.character(Feature.Sim)))
+#group by Feature.Sim							   
+amz_products%>% 
+count(Feature.Sim)%>% 
+as.data.frame()	
+
+#Clean Feature.Geo
+amz_products<-amz_products %>%
+mutate(Feature.Geo=replace(Feature.Geo, Feature.Geo=="", "US")) %>%
+mutate(Feature.Geo=case_when(Feature.Geo %in% (c("EU","Global","International version","International Version","INTERNATIONAL VERSION")) ~ "International",
+								Feature.Geo %in% (c("US Version")) ~ "US",
+								TRUE ~ as.character(Feature.Geo)))
+#group by Feature.Geo							   
+amz_products%>% 
+count(Feature.Geo)%>% 
+as.data.frame()	
+
+#Clean Feature.Warranty
+amz_products<-amz_products %>%
+mutate(Feature.Warranty=replace(Feature.Warranty, Feature.Warranty=="", "No")) %>%
+mutate(Feature.Warranty=case_when(Feature.Warranty %in% (c("Nowarranty","NoWarranty","NoWARRANTY")) ~ "No",
+								Feature.Warranty %in% (c("warranty","Warranty")) ~ "Yes",
+								TRUE ~ as.character(Feature.Warranty)))
+
+#group by Feature.Warranty							   
+amz_products%>% 
+count(Feature.Warranty)%>% 
+as.data.frame()
+
+#Clean Feature.Used
+amz_products<-amz_products %>%
+mutate(Feature.Used=replace(Feature.Used, Feature.Used=="", "Other")) 
+
+#group by Feature.Used							   
+amz_products%>% 
+count(Feature.Used)%>% 
+as.data.frame()
+
+#Clean Feature.Carrier
+amz_products<-amz_products %>%
+mutate(Feature.Carrier=replace(Feature.Carrier, Feature.Carrier=="", "Any")) %>%
+mutate(Feature.Carrier=case_when(Feature.Carrier=="At&t" ~ "AT&T",
+								Feature.Carrier=="T-MOBILE" ~ "T-Mobile",
+								Feature.Carrier=="VERIZON" ~ "Verizon",
+								Feature.Carrier %in% (c("BOOST","Virgin")) ~ "Other",
+								TRUE ~ as.character(Feature.Carrier)))
+								
+								#group by Feature.Carrier							   
+amz_products%>% 
+count(Feature.Carrier)%>% 
+as.data.frame()
+```
+
+#### After that, we build rating distributions for each feature where we can see that there is some variabiality and the rating differences among the levels of each feature.
+
+```{r}
+#Distribution of rating for each level of Os								
+boxplot(avg_rating~Feature.Os, data=amz_products, boxwex = 0.5,horizontal = FALSE, las = 1, cex.axis = 0.6, xlab="Os", ylab="Rating")															
+#Distribution of rating for each level of Color								
+boxplot(avg_rating~Feature.Color, data=amz_products, boxwex = 0.5,horizontal = FALSE, las = 1, cex.axis = 0.6, xlab="Color", ylab="Rating")
+
+#Distribution of rating for each level of Sim								
+boxplot(avg_rating~Feature.Sim, data=amz_products, boxwex = 0.5,horizontal = FALSE, las = 1, cex.axis = 0.6, xlab="Sim", ylab="Rating")
+								
+#Distribution of rating for each level of Geo								
+boxplot(avg_rating~Feature.Geo, data=amz_products, boxwex = 0.5,horizontal = FALSE, las = 1, cex.axis = 0.6, xlab="Geo", ylab="Rating")
+
+#Distribution of rating for each level of Warranty								
+boxplot(avg_rating~Feature.Warranty, data=amz_products, boxwex = 0.5,horizontal = FALSE, las = 1, cex.axis = 0.6, xlab="Warranty", ylab="Rating")
+
+#Distribution of rating for each level of Used								
+boxplot(avg_rating~Feature.Used, data=amz_products, boxwex = 0.5,horizontal = FALSE, las = 1, cex.axis = 0.6, xlab="Used", ylab="Rating")
+
+#Distribution of rating for each level of Carrier								
+boxplot(avg_rating~Feature.Carrier, data=amz_products, boxwex = 0.5,horizontal = FALSE, las = 1, cex.axis = 0.6, xlab="Carrier", ylab="Rating")
+```
