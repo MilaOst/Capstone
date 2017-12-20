@@ -703,7 +703,7 @@ boxplot(avg_rating~brand.name.group, data=amz_products, boxwex = 0.5,horizontal 
 
 #### We build a view where we can represent ratings vs. prices for each brand separately. In addition, the size of the circles means sales (how many times each product was purchased). At the first sight, it seems that the linear relationships discovered for the whole dataset hold true for each brand separately, except Blackberry and BLU. However, if we look closer at the size of the circles, for example, Nokia, we notice that the influential leverage points that affect the slope of the line, are small. It means that those points contain less sales. It doesn't mean that the smallest point corresponds to 1 sale, becasue the minimum is 13 sales (we look at the summary of counts to check this). But this is still rather small compared to the average sales for each product (almost 300 times).Even though, outliers (product with prices above $1300) were previously excluded from the analysis, it looks like there are still some products in the range of $500-1000 that could be outliers affecting the relationships between rating and price for specific brands such as Nokia, Blackberry, BLU, Samsung, LG.
 
-```{r}
+```{r, fig.width = 10, fig.height = 8}
 #Rating vs. Price by Brand	  
 ggplot(amz_products, aes(y=avg_rating, x=avg_price,col=brand.name.group, size=counts))+
 geom_point(shape=1, alpha=0.6)+
@@ -973,3 +973,236 @@ boxplot(avg_rating~Feature.Used, data=amz_products, boxwex = 0.5,horizontal = FA
 #Distribution of rating for each level of Carrier								
 boxplot(avg_rating~Feature.Carrier, data=amz_products, boxwex = 0.5,horizontal = FALSE, las = 1, cex.axis = 0.6, xlab="Carrier", ylab="Rating")
 ```
+
+# Cluster Analysis
+
+#### First, we create a table with the fields for clustering: 7 product features, brand name, and price.
+
+```{r}
+library(cluster)    # clustering algorithms
+library(factoextra) # clustering visualization
+
+#Create table for clustering
+amz_products_cls<-amz_products%>%
+select(-brand.name.clean, -Features.Txt, -Feature.CPU, -Feature.Battery, -Feature.Ram, -Feature.Rugged, -Feature.Lock, -Feature.Type, -Feature.Mhz,-Feature.Storage.Sort, -Feature.Screen)
+```
+
+```{r echo=FALSE}
+amz_products_cls<-amz_products_cls %>%
+mutate(Feature.Color=case_when(Feature.Color %in% (c("Blue","Brown","Green","Orange","Pink","Purple","Red","Rose Gold","Yellow","Other","Multicolor")) ~ "Other",
+TRUE ~ as.character(Feature.Color)))
+```
+
+#### Next step is to recode categorical varibales (features and brand) into numeric.
+
+```{r}
+#Recode fields into numeric
+#Color
+amz_products_cls<-amz_products_cls %>%
+mutate(Feature.Color.Recode=case_when(Feature.Color=="Black" ~ "1",
+								Feature.Color=="Gold" ~ "2",
+								Feature.Color=="Silver" ~ "3",
+								Feature.Color=="White" ~ "4",
+								Feature.Color=="Other" ~ "5"))
+
+amz_products_cls$Feature.Color.Recode=as.numeric(amz_products_cls$Feature.Color.Recode)
+summary(amz_products_cls$Feature.Color.Recode)
+
+
+#Warranty
+amz_products_cls<-amz_products_cls %>%
+mutate(Feature.Warranty.Recode=ifelse(Feature.Warranty=="Yes",1,0))
+
+amz_products_cls$Feature.Warranty.Recode=as.numeric(amz_products_cls$Feature.Warranty.Recode)
+summary(amz_products_cls$Feature.Warranty.Recode)
+	
+#Sim
+amz_products_cls<-amz_products_cls %>%
+mutate(Feature.Sim.Recode=ifelse(Feature.Sim=="Single",1,2))
+
+amz_products_cls$Feature.Sim.Recode=as.numeric(amz_products_cls$Feature.Sim.Recode)
+summary(amz_products_cls$Feature.Sim.Recode)
+
+#Carrier
+amz_products_cls<-amz_products_cls %>%
+mutate(Feature.Carrier.Recode=case_when(Feature.Carrier=="AT&T" ~ "1",
+								Feature.Carrier=="Verizon" ~ "2",
+								Feature.Carrier=="T-Mobile" ~ "3",
+								Feature.Carrier=="Sprint" ~ "4",
+								Feature.Carrier=="Other" ~ "5",
+								Feature.Carrier=="Any" ~ "6"))
+
+amz_products_cls$Feature.Carrier.Recode=as.numeric(amz_products_cls$Feature.Carrier.Recode)
+summary(amz_products_cls$Feature.Carrier.Recode)
+
+#Used
+amz_products_cls<-amz_products_cls %>%
+mutate(Feature.Used.Recode=ifelse(Feature.Used=="Other",1,0))
+
+amz_products_cls$Feature.Used.Recode=as.numeric(amz_products_cls$Feature.Used.Recode)
+summary(amz_products_cls$Feature.Used.Recode)
+
+#Geo
+amz_products_cls<-amz_products_cls %>%
+mutate(Feature.Geo.Recode=ifelse(Feature.Geo=="US",1,0))
+
+amz_products_cls$Feature.Geo.Recode=as.numeric(amz_products_cls$Feature.Geo.Recode)
+summary(amz_products_cls$Feature.Geo.Recode)
+
+
+#Os
+amz_products_cls<-amz_products_cls %>%
+mutate(Feature.Os.Recode=case_when(Feature.Os=="Android" ~ "1",
+								Feature.Os=="iOs" ~ "2",
+								Feature.Os=="Windows" ~ "3",
+								Feature.Os=="BlackBerry" ~ "4",
+								Feature.Os=="Other" ~ "5",
+								Feature.Os=="feature" ~ "6"))
+
+amz_products_cls$Feature.Os.Recode=as.numeric(amz_products_cls$Feature.Os.Recode)
+summary(amz_products_cls$Feature.Os.Recode)
+
+
+#Brand
+amz_products_cls<-amz_products_cls %>%
+mutate(Brand.Recode=case_when(brand.name.group=="Samsung" ~ "1",
+								brand.name.group=="Apple" ~ "2",
+								brand.name.group=="LG" ~ "3",
+								brand.name.group=="Blackberry" ~ "4",
+								brand.name.group=="Nokia" ~ "5",
+								brand.name.group=="BLU" ~ "6",
+								brand.name.group=="Google" ~ "7",
+								brand.name.group=="Other" ~ "8"))
+
+amz_products_cls$Brand.Recode=as.numeric(amz_products_cls$Brand.Recode)
+summary(amz_products_cls$Brand.Recode)
+```
+
+#### Due to all variables have different scale, we standardize the variables before running the analysis.
+
+```{r}
+#Scale
+amz_products_cls[,c("Feature.Color.Scale","Feature.Warranty.Scale","Feature.Sim.Scale","Feature.Carrier.Scale","Feature.Used.Scale","Feature.Geo.Scale","Feature.Os.Scale","Brand.Scale","Price.Scale")] <-scale (amz_products_cls[,c("Feature.Color.Recode","Feature.Warranty.Recode","Feature.Sim.Recode","Feature.Carrier.Recode","Feature.Used.Recode","Feature.Geo.Recode","Feature.Os.Recode","Brand.Recode","avg_price")])
+```
+
+#### Then, we calculate distance beween observations (products) by using Eucledian distance measure.
+
+```{r}
+#Calcualte distance - dissimilarity matrix
+d.ecl<-dist(amz_products_cls[,c("Feature.Color.Scale","Feature.Warranty.Scale","Feature.Sim.Scale","Feature.Carrier.Scale","Feature.Used.Scale","Feature.Geo.Scale","Feature.Os.Scale","Brand.Scale","Price.Scale")], method="euclidean")
+```
+
+#### If we look at the matrix of distances between first 5 ovbservations, we see that for example, product 1 and 2 are far apart compared to 1 and 3. 
+
+``` {r}
+as.matrix(d.ecl)[1:5,1:5]
+```
+
+#### After that, we use this dissimilarity matrix to run hierarchical cluster analysis using method Ward and plotting the output.
+
+```{r}
+#Run hierarchical clustering
+set.seed(1234)
+cls<-hclust(d.ecl,method="ward.D")
+plot(cls, cex=0.6, hang=-1)
+```
+
+#### At first glance, we see from the dendrogram that there might be 8 distinct clusters. The biggest jump in height is when moving from 8 to 6 clusters, which means that at this stage the distinct clusters 5 and 6 are merged together, as well as even more distinct 7 and 8 clusters are merged into one. Let's take a look at individual products from these clusters.
+
+```{r}
+#Check specific observations - cut at a certain height and select a branch
+plot(cut(as.dendrogram(cls),h=90)$lower[[5]])
+```
+
+#### If we cut the tree at height 90 and select the 5th branch, we see that there are 4 sub-branches at height around 20. We check 3 products from the first sub-branch on the left and see that these are almost identical products that differ slightly by price. It makes total sense why these 3 products belong to the same cluster.
+
+```{r}
+#Check individual observations
+View(amz_products_cls[c(386,325,403),])
+```
+
+#### Now when we look at the these three products from the first sub-branch on the left and other 2 products from the last sub-branch (on the right) we see that the products from these sub-branches are different on: price, color, and brand. But because they had everything else in common, they are the members of the same cluster, 5. These two sub-branches join together among the last with the biggest height, 80. 
+
+```{r}
+#Check individual observations
+View(amz_products_cls[c(386,325,403,469,271),])
+```
+
+#### If we look at some individual products from cluster 6, we notice that the first 2 observations from the first left sub-branch in cluster 6 has products with much higher price level, different color, technology, brand, and OS. 
+
+```{r}
+plot(cut(as.dendrogram(cls),h=90)$lower[[6]])
+View(amz_products_cls[c(386,325,403,144,137),])
+```
+
+#### Since products from cluster 5 and cluster 6 differ on almost half of the variables, these clusters are joined together into one when the height is around 200. It's twice higher jump. So the 8 cluster solution seems more reasonble compared to the 6 cluster solution that joins clusters that are far apart.
+
+```{r}
+#Check goodness-of-fit 
+cor(cophenetic(cls),d.ecl)
+```
+
+#### Next, we check goodness-of-fit measure for cluster analysis to see how the dendrogram matches the true distance matrix and it's pretty strong. We cut the tree into 8 groups and add a border around each cluster.
+
+```{r}
+#Cut tree into k groups
+sub_grp<-cutree(cls,k=8)
+#Add rectangle to each cluster
+plot(cls, cex=0.6)
+rect.hclust(cls, k=8, border=2:9)
+```
+
+#### If we look at how many products belong to each cluster, we see that it's a pretty balanced solution with cluster 5 being slighlty overpopulated.
+
+```{r}
+#Calculate number of members in each cluster
+table(sub_grp)
+```
+
+#### We assign the cluster membership to each observation.
+
+```{r} 
+#Add cluster number to each observations
+amz_products_cls<-amz_products_cls %>%
+mutate(cluster_ecl=sub_grp)
+``` 
+
+#### When we look at the cluster plot, we see that there is some overlap between some clusters but generally there are clusters that are far apart and do not overlap with each other.
+
+```{r}
+#Cluster plot
+fviz_cluster(list(data = amz_products_cls[,c("Feature.Color.Scale","Feature.Warranty.Scale","Feature.Sim.Scale","Feature.Carrier.Scale","Feature.Used.Scale","Feature.Geo.Scale","Feature.Os.Scale","Brand.Scale","Price.Scale")], cluster = sub_grp))
+```
+
+#### Next we examine the proportion of products in each cluster having specific feature and compare is those proportions are significantly different among clusters. Chi-square test confirmed that clusters differ on each feature.
+
+```{r}
+#Test proportions - cross-tabs
+library(gmodels)
+CT_Color<-CrossTable(as.factor(amz_products_cls$Feature.Color),as.factor(amz_products_cls$cluster_ecl), format=c("SPSS"), prop.r=FALSE, prop.c=TRUE, prop.t=FALSE, chisq=TRUE)
+CT_Warranty<-CrossTable(as.factor(amz_products_cls$Feature.Warranty),as.factor(amz_products_cls$cluster_ecl), format=c("SPSS"), prop.r=FALSE, prop.c=TRUE, prop.t=FALSE, chisq=TRUE)
+CT_Sim<-CrossTable(as.factor(amz_products_cls$Feature.Sim),as.factor(amz_products_cls$cluster_ecl), format=c("SPSS"), prop.r=FALSE, prop.c=TRUE, prop.t=FALSE, chisq=TRUE)
+CT_Carrier<-CrossTable(as.factor(amz_products_cls$Feature.Carrier),as.factor(amz_products_cls$cluster_ecl), format=c("SPSS"), prop.r=FALSE, prop.c=TRUE, prop.t=FALSE, chisq=TRUE)
+CT_Used<-CrossTable(as.factor(amz_products_cls$Feature.Used),as.factor(amz_products_cls$cluster_ecl), format=c("SPSS"), prop.r=FALSE, prop.c=TRUE, prop.t=FALSE, chisq=TRUE)
+CT_Geo<-CrossTable(as.factor(amz_products_cls$Feature.Geo),as.factor(amz_products_cls$cluster_ecl), format=c("SPSS"), prop.r=FALSE, prop.c=TRUE, prop.t=FALSE, chisq=TRUE)
+CT_Os<-CrossTable(as.factor(amz_products_cls$Feature.Os),as.factor(amz_products_cls$cluster_ecl), format=c("SPSS"), prop.r=FALSE, prop.c=TRUE, prop.t=FALSE, chisq=TRUE)
+CT_Brand<-CrossTable(as.factor(amz_products_cls$brand.name.group),as.factor(amz_products_cls$cluster_ecl), format=c("SPSS"), prop.r=FALSE, prop.c=TRUE, prop.t=FALSE, chisq=TRUE)
+```
+
+#### Also, there are price differences among clusters - #3, #5, #6 tend to be higher priced, #1, #6 contain products with the lowest prices. 
+
+```{r}
+#Price differences among clusters
+tapply(amz_products_cls$avg_price, sub_grp, mean)
+boxplot(amz_products_cls$avg_price ~ as.factor(amz_products_cls$cluster_ecl), xlab="Cluster", ylab="Price")
+```
+
+#### In addition, we compare clusters based on the variable that did not participate in clustering - customer rating. As we saw previously, generally the majority of products tend to have high ratings. But clustering allowed to identify the groups with less favorable ratings - cluster 6, cluster 4, cluster 1, cluster 8. So it looks like that features, brand, and price are useful not only for creating distinct clusters but also for predicting problematic clusters.
+
+```{r}
+#Rating differences among clusters
+tapply(amz_products_cls$avg_rating, sub_grp, mean)
+boxplot(amz_products_cls$avg_rating ~ as.factor(amz_products_cls$cluster_ecl), xlab="Cluster", ylab="Rating")
+```
+
+
